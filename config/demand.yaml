@@ -1,0 +1,46 @@
+# Real-data scenario: the first war wave in MW. National hourly consumption (reconstructed from the Ukrenergo
+# balance file) up to 2022-10-27; target = expected peacetime demand - actual consumption (lost demand).
+#   docker compose run --rm deficit-offline <step> --config config/demand.yaml
+# The break on 2022-02-24 (consumption falls from about 18.5 GW to 13 GW in five days) is a ground-truth structural
+# break, so detection can be scored against a known date.
+extends: config.yaml
+
+scenario: demand
+
+period:
+  start: "2019-01-01"
+  end: "2022-10-27"           # the balance file ends here (Ukrenergo stopped publishing)
+
+split:
+  train_end: "2021-12-31 23:00"        # peacetime 2019-2021
+  validation_end: "2022-03-31 23:00"   # Jan-Mar 2022: contains the break
+  # test: Apr-Oct 2022 (the new regime, then the October attacks)
+
+target:
+  definition: demand_loss
+  unit: MW
+  recovery_threshold: 1000
+  recovery_max_days: 120
+  episode_threshold: 2000     # daily-mean lost demand above 2 GW counts as an episode day
+  episode_gap_days: 3
+
+balance:
+  file: 2026_07_01_pohodynnyi_balans.csv
+
+changepoints:
+  bocpd:
+    hazard_days: 250
+    scale_floor: 300          # MW; the in-sample residual of the peacetime model is small
+
+features:
+  lags_hours: [24, 48, 168]
+  use_dam: false              # ablation: lagged day-ahead price / cap did not improve test MAE (outages rolling 0.070 vs 0.069, net import 233.5 vs 234.5 MW)
+
+models:
+  enabled: [seasonal_naive, prophet_static, xgb_static, xgb_rolling, xgb_adaptive, xgb_adaptive_tau_w, xgb_attack, xgb_drift, xgb_recency, xgb_blend, xgb_rolling_freq]
+
+evaluation:
+  mape_min_abs: 1000
+
+tuning:
+  n_trials: 20

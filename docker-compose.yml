@@ -1,0 +1,33 @@
+# Usage:  docker compose run --rm deficit <step> [options]        (has network, for real data)
+#         docker compose run --rm deficit-offline <step> [options]  (no network at all, for --synthetic)
+# Results land in ./data, ./artifacts and ./reports on the host; code is baked into the image
+# (rebuild after code changes) except config/, which is mounted so you can edit it.
+x-deficit: &deficit
+  build:
+    context: .
+    args:
+      # Default: no TensorFlow (LSTM models skipped). For LSTM:  $env:EXTRAS="lstm"; docker compose build
+      # Changing this value rebuilds every dependency layer, so keep it the same between builds.
+      EXTRAS: ${EXTRAS:-}
+  image: ua-deficit-forecast
+  volumes:
+    - ./data:/app/data
+    - ./artifacts:/app/artifacts
+    - ./reports:/app/reports
+    - ./config:/app/config:ro
+  environment:
+    # Without a limit, XGBoost/numpy start one busy-waiting thread per host CPU, which made even
+    # the small test suite run >5 min at 2300% CPU instead of ~9 s.
+    OMP_NUM_THREADS: "4"
+    OPENBLAS_NUM_THREADS: "4"
+
+services:
+  deficit:
+    <<: *deficit
+    env_file:
+      - path: .env            # tokens; optional, never baked into the image
+        required: false
+
+  deficit-offline:
+    <<: *deficit
+    network_mode: none        # cannot reach the internet and has no access to .env tokens

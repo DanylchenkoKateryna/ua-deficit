@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ua-deficit-forecast"
+version = "0.1.0"
+description = "Adaptive forecasting of electricity deficit depth and duration in Ukraine after infrastructure attacks (structural-break aware ML pipeline)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "pyarrow>=14",
+    "pyyaml>=6",
+    "pydantic>=2.5",
+    "python-dotenv>=1.0",
+    "requests>=2.31",
+    "entsoe-py>=0.6",
+    "ruptures>=1.1.9",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "xgboost>=2.0",
+    "optuna>=3.5",
+    "matplotlib>=3.8",
+    "holidays>=0.40",
+    "prophet>=1.1.5",
+    "telethon>=1.36",
+]
+
+[project.optional-dependencies]
+lstm = ["keras>=3.0", "tensorflow>=2.16"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+deficit = "deficit.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]

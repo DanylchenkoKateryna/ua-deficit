@@ -1,0 +1,49 @@
+# Real-data scenario built on the Ukrenergo planned-outage dataset (Energy Map).
+#   docker compose run --rm deficit --config config/outages.yaml ingest   (and every other step)
+# Everything not listed here is inherited from config.yaml.
+extends: config.yaml
+
+scenario: outages            # outputs go to data/processed/outages, artifacts/outages, reports/outages
+
+period:
+  start: "2023-01-01"        # the outage dataset starts here
+  end: "2026-06-30"
+
+split:                        # chronological; the dataset has no 2019-2022 data
+  train_end: "2024-04-30 23:00"        # 2023 - Apr 2024: one winter episode, then calm
+  validation_end: "2025-06-30 23:00"   # May 2024 - Jun 2025: summer and winter 2024 outages
+  # test: Jul 2025 - Jun 2026 (winter 2025/26 campaign)
+
+target:
+  definition: outage_extent
+  unit: share of regions
+  recovery_threshold: 0.0
+  recovery_max_days: 60
+  episode_threshold: 0.02     # daily mean above ~0.5 h of all-region outage counts as an episode day
+  episode_gap_days: 3
+
+outages:
+  file: 2026_07_01_electricity_outages.csv
+  exclude_suspect: true       # 2025-12-10..2026-01-28 was aggregated from distribution operators
+
+changepoints:
+  bocpd:
+    hazard_days: 120
+    max_run_length_days: 400
+    scale_floor: 0.25         # the series is 0 most of the time, so its training std is tiny
+
+features:
+  lags_hours: [24, 48, 168]
+  use_dam: false              # ablation: lagged day-ahead price / cap did not improve test MAE (outages rolling 0.070 vs 0.069, net import 233.5 vs 234.5 MW)
+
+adaptive:
+  window_days: 60
+
+models:
+  enabled: [seasonal_naive, prophet_static, xgb_static, xgb_rolling, xgb_adaptive, xgb_adaptive_tau_w, xgb_attack, xgb_drift, xgb_recency, xgb_blend, xgb_rolling_freq]
+
+evaluation:
+  mape_min_abs: 0.1
+
+tuning:
+  n_trials: 20

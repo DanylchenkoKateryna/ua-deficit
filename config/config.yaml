@@ -1,0 +1,128 @@
+# Main pipeline configuration. All timestamps are UTC unless stated otherwise.
+# Every value here can be changed without touching code; see README.md §Configuration.
+
+paths:
+  data_dir: data            # real data root (raw/, interim/, processed/, external/)
+  synthetic_dir: data/synthetic  # used instead of data_dir when --synthetic is passed
+  artifacts_dir: artifacts  # models, change points, forecasts
+  reports_dir: reports      # metrics tables and figures
+
+period:
+  start: "2019-01-01"
+  end: "2025-12-31"
+  local_tz: Europe/Kyiv     # used only for calendar features
+
+split:                       # strictly chronological, never shuffled
+  train_end: "2021-12-31 23:00"      # 2019-2021: peacetime
+  validation_end: "2023-12-31 23:00" # 2022-2023: breaks 1 and 2
+  # everything after validation_end is the test set (2024-2025: break 3)
+
+entsoe:
+  area: UA_IPS               # entsoe-py area code (try UA if UA_IPS returns no data)
+  neighbours: [PL, SK, HU, RO, MD]
+  chunk_days: 365            # ENTSO-E API limit is one year per request
+
+weather:
+  # Population-weighted national average of these cities.
+  locations:
+    - {name: Kyiv,    lat: 50.45, lon: 30.52, weight: 0.30}
+    - {name: Kharkiv, lat: 49.99, lon: 36.23, weight: 0.15}
+    - {name: Odesa,   lat: 46.48, lon: 30.72, weight: 0.15}
+    - {name: Dnipro,  lat: 48.46, lon: 35.05, weight: 0.15}
+    - {name: Lviv,    lat: 49.84, lon: 24.03, weight: 0.15}
+    - {name: Vinnytsia, lat: 49.23, lon: 28.47, weight: 0.10}
+  variables: [temperature_2m, wind_speed_10m]
+  start: "2019-01-01"       # one weather file serves every scenario (config/outages.yaml needs 2023-2026)
+  end: "2026-06-30"
+
+acled:
+  country: Ukraine
+  event_types: ["Explosions/Remote violence"]
+  energy_keywords: [power plant, thermal power, TPP, CHP, hydroelectric, HPP, substation,
+                    energy infrastructure, energy facility, electricity, power grid,
+                    power line, transformer, Ukrenergo, DTEK, blackout]
+
+preprocessing:
+  short_gap_hours: 3         # <= 3h: linear interpolation
+  medium_gap_hours: 24       # 3-24h: same hour of previous week; > 24h: left NaN and flagged
+
+target:
+  # balance        : deficit = actual_load - (generation_total + net_import)  (thesis §2.2), unit MW
+  # demand_gap     : deficit = counterfactual peacetime demand - actual_load (see README caveat), unit MW
+  # outage_extent  : deficit = share of regions under planned outages, from the Ukrenergo outage
+  #                  dataset (config/outages.yaml). Real data, but an index, not MW.
+  definition: balance
+  unit: MW                # label used in reports and plots
+  recovery_threshold: 0   # deficit below this => recovered
+  recovery_max_days: 90
+  episode_threshold: 0    # a day belongs to a deficit episode if its daily mean exceeds this
+  episode_gap_days: 3     # episodes separated by fewer calm days are merged
+
+features:
+  horizon_hours: 24          # forecast issued at t-h for hour t (day-ahead). 1 = thesis lag set.
+  lags_hours: [1, 24, 48, 168]   # lags < horizon are dropped automatically (no leakage)
+  rolling_hours: [72]
+  attack_decay_hours: 168    # e-folding time of the attack impulse feature
+
+changepoints:
+  resolution: D              # detection runs on daily-mean deficit
+  pelt:
+    model: l2
+    penalty: 10.0            # on the standardised series; lower => more breaks
+    min_size_days: 14
+  bocpd:
+    hazard_days: 250         # expected regime length (prior)
+    max_run_length_days: 730
+    recent_window_days: 3    # signal = P(run length <= this)
+    threshold: 0.7           # tuned on validation by `deficit tune`
+  eval_tolerance_days: 14    # a detection within this many days after an attack is a hit
+
+adaptive:
+  window_days: 60            # train on [tau - window, now]
+  min_train_days: 21         # ensures at least this much history even right after a break
+  retrain_every_days: 7      # scheduled refit cadence, in addition to break-triggered refits
+  cooldown_days: 7           # ignore new alarms this soon after the previous one
+
+models:
+  enabled: [prophet_static, xgb_static, xgb_adaptive, lstm_static, lstm_adaptive]
+  xgboost:
+    n_estimators: 400
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 5
+  lstm:
+    sequence_hours: 168
+    units: 64
+    dropout: 0.1
+    epochs: 15
+    batch_size: 128
+    learning_rate: 0.001
+    retrain_every_days: 28   # LSTM refits are slower; break-triggered refits still happen
+
+evaluation:
+  crisis_window_days: 14
+  mape_min_abs: 50        # MAPE skips |y| below this (deficit crosses zero)
+  wilcoxon_reference: xgb_adaptive
+
+tuning:
+  n_trials: 30
+  cv_splits: 5
+  seed: 42
+
+telegram:                    # `deficit extract`: structured strike-impact dataset from public Telegram posts
+  exclude_channels: [kpszsu]       # Air Force strike counts, not outage reports
+  national_channels: [ukrenergo]   # whose "restrictions lifted / power restored" posts define an episode's resolution
+  episode_horizon_days: 30         # posts after a strike are searched this long (right-censored afterwards)
+  relapse_days: 3                  # impact seen again this soon after the resolution = relapse
+  pre_strike_days: 3               # look-back for restrictions already in force before the strike
+  feature_channels: [ukrenergo]    # channels behind the forecast features (national channel: continuous coverage since 2022-02)
+  use_in_post_event: true          # telegram feature sets in the post-event direct models (features/telegram.py)
+  restoration_min_obs: 3           # restoration-duration models need this many observed durations known at the issue time
+  restoration_alphas: [1.0, 10.0]  # penalty grid, design chosen on the validation period only
+  regime_lookback_days: 60
+  region_validation_end: "2024-12-31"   # oblast-level restoration forecast: strikes up to here = validation (design choice), later = test
+  region_alphas: [1.0, 10.0, 100.0]
+  region_min_obs: 30               # observed past episodes needed before the first oblast-level forecast
+  region_min_oblast: 3             # oblast median baseline needs this many past observed episodes of the oblast

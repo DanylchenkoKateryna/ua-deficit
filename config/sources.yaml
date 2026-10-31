@@ -1,0 +1,56 @@
+# Public sources for the self-built strike-impact dataset (collector: `deficit collect`).
+# Telegram channels are read through their public web preview https://t.me/s/<name> (no login, no API keys).
+# Handles verified 2026-10-18 by fetching the preview page (HTTP 200 with posts, channel title checked).
+telegram:
+  - {name: ukrenergo,      enabled: true,  purpose: "Ukrenergo (TSO): outage schedules, restrictions, damage and restoration after strikes"}
+  - {name: kpszsu,         enabled: true,  purpose: "Air Force: strike reports (source of our strike list), timing and targets"}
+  - {name: dtek_ua,        enabled: true,  purpose: "DTEK (largest private energy company): damage to TPPs/networks, consumers cut off"}
+  - {name: Lvivoblenergo,  oblast: Lviv, enabled: true,  purpose: "Lvivoblenergo (oblenergo, west): consumers without power, restoration"}
+  - {name: ztoe_ua,        oblast: Zhytomyr, enabled: true,  purpose: "Zhytomyroblenergo (oblenergo, north-west): outages and restoration"}
+  - {name: sumyoblenergo,  oblast: Sumy, enabled: true,  purpose: "Sumyoblenergo (oblenergo, north-east, frontline): outages and restoration"}
+  - {name: energoatom_ua,  enabled: true,  purpose: "Energoatom: NPP status, substation attacks affecting NPPs"}
+  # ---- regional channels (oblast = region code of telegram_extract.REGIONS; `deficit extract` maps their posts to that oblast).
+  # Handles verified 2026-10-18 by ONE fetch of the t.me/s preview each. Order = collection order (oblenergos first, then
+  # regional military administrations, which post much more unrelated news).
+  - {name: khmelnytskoblenergo, oblast: Khmelnytskyi, enabled: true, purpose: "Khmelnytskoblenergo (oblenergo): schedules, outages, restoration"}
+  - {name: chernihivoblenergo,  oblast: Chernihiv,    enabled: true, purpose: "Chernihivoblenergo (oblenergo, north): outages and restoration"}
+  - {name: cherkasyoblenergo,   oblast: Cherkasy,     enabled: true, purpose: "Cherkasyoblenergo (oblenergo): outages and restoration"}
+  - {name: kirovogradoblenergo, oblast: Kirovohrad,   enabled: true, purpose: "Kirovohradoblenergo (oblenergo): emergency schedules (few posts)"}
+  - {name: volynoblenergo,      oblast: Volyn,        enabled: true, purpose: "Volynoblenergo (oblenergo, north-west): outages; preview history ends 2023-09"}
+  - {name: mykolaivoblenergo,   oblast: Mykolaiv,     enabled: true, purpose: "Mykolaivoblenergo (title 'MYKOLAIVOBLENERGO | schedules'; identity from content, no official confirmation)"}
+  - {name: rivneoblenergo,      oblast: Rivne,        enabled: true, purpose: "Rivneoblenergo (oblenergo): history ends 2022-05, planned works"}
+  - {name: dtek_ua_kyiv,        oblast: Kyiv_city,    enabled: true, purpose: "DTEK Kyiv networks (title 'DTEK'): Kyiv city outages"}
+  - {name: dtek_odesa,          oblast: Odesa,        enabled: true, purpose: "DTEK Odesa networks: outages and restoration"}
+  - {name: dnipropetrovskaoda,  oblast: Dnipropetrovsk, enabled: true, window_collected: true, continuous_from: "2024-11-01", purpose: "Dnipropetrovsk regional military administration (O. Ganzha): strikes, power restoration"}
+  - {name: zoda_gov_ua,         oblast: Zaporizhzhia, enabled: true, window_collected: true, purpose: "Zaporizhzhia regional military administration (M. Semikin)"}
+  - {name: khersonskaoda,       oblast: Kherson,      enabled: true, purpose: "Kherson regional military administration"}
+  - {name: khmelnytskaoda,      oblast: Khmelnytskyi, enabled: true, purpose: "Khmelnytskyi regional military administration (S. Tyurin)"}
+  - {name: vinnytsiaoda,        oblast: Vinnytsia,    enabled: true, purpose: "Vinnytsia regional military administration"}
+  - {name: poltavskaoda,        oblast: Poltava,      enabled: true, window_collected: true, purpose: "Poltava regional military administration (news)"}
+  # identity not read from the page title (the title was lost by a logging error; the page was fetched once): check the
+  # posts in data/raw/telegram after collection and disable if they are not the regional administration / its head.
+  - {name: kyivoda,             oblast: Kyiv,         enabled: true, window_collected: true, purpose: "Kyiv oblast military administration (unverified identity)"}
+  - {name: kharkivoda,          oblast: Kharkiv,      enabled: true, window_collected: true, purpose: "Kharkiv oblast military administration (unverified identity)"}
+  - {name: synegubov,           oblast: Kharkiv,      enabled: true, purpose: "O. Synehubov, head of Kharkiv OVA (unverified identity)"}
+  - {name: odeskaoda,           oblast: Odesa,        enabled: true, window_collected: true, purpose: "Odesa oblast military administration (unverified identity)"}
+  # reachable but not enabled
+  - {name: cherkaskaoda,        oblast: Cherkasy,     enabled: false, purpose: "Cherkasy OVA head: mostly air-raid alert feed"}
+  - {name: mykolaivskaoda,      oblast: Mykolaiv,     enabled: false, purpose: "2 posts, channel moved ('Channel created')"}
+  - {name: ifoda,               oblast: Ivano-Frankivsk, enabled: false, purpose: "4 posts, no content; identity unclear"}
+  - {name: ternopiloblenergo,   oblast: Ternopil,     enabled: false, purpose: "Ternopiloblenergo bot channel (meter readings), no outage reports"}
+  - {name: odesaoda,            oblast: Odesa,        enabled: false, purpose: "probably duplicate of odeskaoda (unverified)"}
+  - {name: suspilnenews,   enabled: false, purpose: "Suspilne News: large news channel for cross-checks (~78k posts; enable for a long backfill)"}
+  - {name: ukrpravda_news, enabled: false, purpose: "Ukrainska Pravda: news channel for cross-checks"}
+# Reachable but not enabled (unclear identity): yasno_energy (title "Yasnist dlya sebe"); moe_ua rejected (unrelated, emoji title).
+# Regional discovery 2026-10-18 (one fetch per handle, t.me/s redirect = no preview). UNREACHABLE (no oblast channel found for
+#   Zakarpattia, Chernivtsi, Ivano-Frankivsk, Ternopil, Zaporizhzhia/Dnipro/Kharkiv/Kyiv oblenergos):
+#   dtek_kyiv_grids (connection dropped), kyivoblenergo, kyivoblenergo_official, KyivOblEnergo, kyivoblastadmin,
+#   kharkivoblenergo_official, KhOE_official, dtek_odeski, dtek_dnem, dtek_dnipro, dnipro_oblenergo, zoe_zp,
+#   zaporizhzhyaoblenergo, zaporizka_oda, vitaliy_kim, poltavaoblenergo, poe_pl, vinnitsaoblenergo, vinnytsiaoblenergo,
+#   vinnytsia_oda, kmoblenergo, roe_ua, rivneoda, voe_ua, volynoda, toe_ua, ternopiloda, prykarpattyaoblenergo, poe_if,
+#   zakarpattyaoblenergo, zakarpattiaoblenergo, zakarpatska_oda, chernivtsioblenergo, chernivtsiobl, chernivetska_oda,
+#   kirovohradoblenergo, kirovohradska_oda, khersonoblenergo, ksoda_ua, chernihivskaoda, chernihivoda, cherkasyoda.
+# Not reachable without login: MinEnergoUA (Ministry of Energy) - t.me/s/MinEnergoUA redirects to the channel page,
+#   i.e. the web preview is disabled; needs the Telegram API (user credentials). Guessed handles for Kyivoblenergo,
+#   Kharkivoblenergo, DTEK Odesa/Dnipro/Kyiv networks and the main Yasno channel exposed no preview either.
+rss: []   # none added: no energy RSS feed with usable history was verified

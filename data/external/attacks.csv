@@ -1,0 +1,83 @@
+date,time_utc,description,capacity_lost_MW,major,source,verified,weapons_fired,weapons_through,missiles_fired
+2022-02-24,03:00,Full-scale invasion - demand shock,,True,public reporting,True,0,0,0
+2022-09-11,06:00,"Massive strike: 12 missiles, 0 drones, 3 reached targets",,True,https://t.me/kpszsu/1920,True,12,3,12
+2022-10-10,06:00,"Massive strike: 84 missiles, 24 drones, 52 reached targets",,True,https://t.me/kpszsu/2033,True,108,52,84
+2022-10-11,06:00,"Massive strike: 28 missiles, 15 drones, 10 reached targets",,True,https://t.me/kpszsu/2041,True,43,10,28
+2022-10-22,06:00,"Massive strike: 33 missiles, 16 drones, 20 reached targets",,True,https://t.me/kpszsu/2094,True,49,20,33
+2022-10-31,06:00,"Massive strike: 78 missiles, 4 drones, 38 reached targets",,True,https://t.me/kpszsu/2120,True,82,38,78
+2022-11-15,06:00,"Massive strike: 96 missiles, 10 drones, 21 reached targets",,True,https://t.me/kpszsu/2161,True,106,21,96
+2022-11-23,06:00,"Massive strike: 70 missiles, 0 drones, 19 reached targets",,True,https://t.me/kpszsu/2171,True,70,19,70
+2022-12-05,06:00,"Massive strike: 70 missiles, 0 drones, 10 reached targets",,True,https://t.me/kpszsu/2195,True,70,10,70
+2022-12-16,06:00,"Massive strike: 103 missiles, 0 drones, 43 reached targets",,True,https://t.me/kpszsu/2215,True,103,43,103
+2022-12-29,06:00,"Massive strike: 70 missiles, 0 drones, 12 reached targets",,True,https://t.me/kpszsu/2237,True,70,12,70
+2022-12-31,06:00,"Massive strike: 20 missiles, 0 drones, 5 reached targets",,True,https://t.me/kpszsu/2242,True,20,5,20
+2023-01-14,06:00,"Massive strike: 38 missiles, 0 drones, 13 reached targets",,True,https://t.me/kpszsu/2268,True,38,13,38
+2023-01-26,06:00,"Massive strike: 55 missiles, 24 drones, 5 reached targets",,True,https://t.me/kpszsu/2288,True,79,5,55
+2023-02-10,06:00,"Massive strike: 106 missiles, 27 drones, 47 reached targets",,True,https://t.me/kpszsu/2312,True,133,47,106
+2023-02-16,06:00,"Massive strike: 34 missiles, 0 drones, 18 reached targets",,True,https://t.me/kpszsu/2322,True,34,18,34
+2023-03-09,06:00,"Massive strike: 81 missiles, 8 drones, 43 reached targets",,True,https://t.me/kpszsu/2385,True,89,43,81
+2024-03-22,06:00,"Massive strike: 88 missiles, 63 drones, 59 reached targets",,True,https://t.me/kpszsu/12175,True,151,59,88
+2024-03-29,06:00,"Massive strike: 39 missiles, 60 drones, 15 reached targets",,True,https://t.me/kpszsu/12534,True,99,15,39
+2024-04-11,06:00,"Massive strike: 42 missiles, 40 drones, 25 reached targets",,True,https://t.me/kpszsu/13132,True,82,25,42
+2024-04-27,06:00,"Massive strike: 34 missiles, 0 drones, 13 reached targets",,True,https://t.me/kpszsu/13663,True,34,13,34
+2024-05-08,06:00,"Massive strike: 55 missiles, 21 drones, 17 reached targets",,True,https://t.me/kpszsu/14039,True,76,17,55
+2024-06-01,06:00,"Massive strike: 53 missiles, 47 drones, 19 reached targets",,True,https://t.me/kpszsu/14963,True,100,19,53
+2024-06-20,06:00,"Massive strike: 9 missiles, 27 drones, 4 reached targets",,True,https://t.me/kpszsu/15605,True,36,4,9
+2024-06-22,06:00,"Massive strike: 16 missiles, 13 drones, 4 reached targets",,True,https://t.me/kpszsu/15703,True,29,4,16
+2024-08-26,06:00,"Massive strike: 127 missiles, 109 drones, 30 reached targets",,True,https://t.me/kpszsu/18332,True,236,30,127
+2024-11-17,06:00,"Massive strike: 120 missiles, 90 drones, 23 reached targets",,True,https://t.me/kpszsu/23111,True,210,23,120
+2024-11-28,06:00,"Massive strike: 91 missiles, 97 drones, 12 reached targets",,True,https://t.me/kpszsu/23855,True,188,12,91
+2024-12-13,06:00,"Massive strike: 94 missiles, 193 drones, 15 reached targets",,True,https://t.me/kpszsu/24772,True,287,15,94
+2024-12-25,06:00,"Massive strike: 78 missiles, 106 drones, 19 reached targets",,True,https://t.me/kpszsu/25647,True,184,19,78
+2025-01-15,06:00,"Massive strike: 43 missiles, 74 drones, 13 reached targets",,True,https://t.me/kpszsu/26954,True,117,13,43
+2025-02-01,06:00,"Massive strike: 42 missiles, 123 drones, 48 reached targets",,True,https://t.me/kpszsu/27940,True,165,48,42
+2025-02-11,06:00,"Massive strike: 19 missiles, 124 drones, 22 reached targets",,True,https://t.me/kpszsu/28586,True,143,22,19
+2025-02-20,06:00,"Massive strike: 14 missiles, 161 drones, 17 reached targets",,True,https://t.me/kpszsu/29165,True,175,17,14
+2025-03-07,06:00,"Massive strike: 58 missiles, 194 drones, 22 reached targets",,True,https://t.me/kpszsu/30161,True,252,22,58
+2025-07-23,06:00,"Massive strike: 0 missiles, 71 drones, 26 reached targets",,True,https://t.me/kpszsu/39072,True,71,26,0
+2025-08-19,06:00,"Massive strike: 10 missiles, 270 drones, 44 reached targets",,True,https://t.me/kpszsu/40676,True,280,44,10
+2025-08-27,06:00,"Massive strike: 0 missiles, 95 drones, 21 reached targets",,True,https://t.me/kpszsu/41079,True,95,21,0
+2025-08-31,06:00,"Massive strike: 0 missiles, 142 drones, 16 reached targets",,True,https://t.me/kpszsu/41401,True,142,16,0
+2025-09-08,06:00,"Massive strike: 0 missiles, 142 drones, 30 reached targets",,True,https://t.me/kpszsu/41858,True,142,30,0
+2025-10-03,06:00,"Massive strike: 35 missiles, 381 drones, 96 reached targets",,True,https://t.me/kpszsu/43749,True,416,96,35
+2025-10-05,06:00,"Massive strike: 53 missiles, 496 drones, 65 reached targets",,True,https://t.me/kpszsu/43959,True,549,65,53
+2025-10-10,06:00,"Massive strike: 32 missiles, 465 drones, 73 reached targets",,True,https://t.me/kpszsu/44381,True,497,73,32
+2025-10-16,06:00,"Massive strike: 37 missiles, 320 drones, 51 reached targets",,True,https://t.me/kpszsu/44843,True,357,51,37
+2025-10-22,06:00,"Massive strike: 28 missiles, 405 drones, 67 reached targets",,True,https://t.me/kpszsu/45287,True,433,67,28
+2025-10-30,06:00,"Massive strike: 52 missiles, 653 drones, 79 reached targets",,True,https://t.me/kpszsu/46009,True,705,79,52
+2025-11-08,06:00,"Massive strike: 45 missiles, 458 drones, 88 reached targets",,True,https://t.me/kpszsu/46825,True,503,88,45
+2025-11-19,06:00,"Massive strike: 48 missiles, 476 drones, 41 reached targets",,True,https://t.me/kpszsu/47866,True,524,41,48
+2025-11-25,06:00,"Massive strike: 22 missiles, 464 drones, 34 reached targets",,True,https://t.me/kpszsu/48318,True,486,34,22
+2025-11-29,06:00,"Massive strike: 36 missiles, 596 drones, 55 reached targets",,True,https://t.me/kpszsu/48627,True,632,55,36
+2025-12-06,06:00,"Massive strike: 51 missiles, 653 drones, 89 reached targets",,True,https://t.me/kpszsu/49152,True,704,89,51
+2025-12-13,06:00,"Massive strike: 30 missiles, 465 drones, 59 reached targets",,True,https://t.me/kpszsu/49679,True,495,59,30
+2025-12-23,06:00,"Massive strike: 38 missiles, 635 drones, 49 reached targets",,True,https://t.me/kpszsu/50506,True,673,49,38
+2025-12-27,06:00,"Massive strike: 40 missiles, 519 drones, 40 reached targets",,True,https://t.me/kpszsu/50944,True,559,40,40
+2026-01-01,06:00,"Massive strike: 0 missiles, 205 drones, 29 reached targets",,True,https://t.me/kpszsu/51312,True,205,29,0
+2026-01-08,06:00,"Massive strike: 0 missiles, 97 drones, 27 reached targets",,True,https://t.me/kpszsu/51872,True,97,27,0
+2026-01-09,06:00,"Massive strike: 36 missiles, 242 drones, 34 reached targets",,True,https://t.me/kpszsu/51965,True,278,34,36
+2026-01-13,06:00,"Massive strike: 25 missiles, 293 drones, 71 reached targets",,True,https://t.me/kpszsu/52374,True,318,71,25
+2026-01-20,06:00,"Massive strike: 34 missiles, 339 drones, 31 reached targets",,True,https://t.me/kpszsu/53142,True,373,31,34
+2026-01-24,06:00,"Massive strike: 21 missiles, 375 drones, 24 reached targets",,True,https://t.me/kpszsu/53516,True,396,24,21
+2026-02-03,06:00,"Massive strike: 71 missiles, 450 drones, 71 reached targets",,True,https://t.me/kpszsu/54449,True,521,71,71
+2026-02-07,06:00,"Massive strike: 39 missiles, 408 drones, 41 reached targets",,True,https://t.me/kpszsu/54980,True,447,41,39
+2026-02-12,06:00,"Massive strike: 25 missiles, 219 drones, 31 reached targets",,True,https://t.me/kpszsu/55398,True,244,31,25
+2026-02-17,06:00,"Massive strike: 29 missiles, 396 drones, 33 reached targets",,True,https://t.me/kpszsu/55822,True,425,33,29
+2026-02-22,06:00,"Massive strike: 50 missiles, 297 drones, 40 reached targets",,True,https://t.me/kpszsu/56278,True,347,40,50
+2026-02-26,06:00,"Massive strike: 39 missiles, 420 drones, 53 reached targets",,True,https://t.me/kpszsu/56598,True,459,53,39
+2026-03-07,06:00,"Massive strike: 29 missiles, 480 drones, 37 reached targets",,True,https://t.me/kpszsu/57337,True,509,37,29
+2026-03-14,06:00,"Massive strike: 68 missiles, 430 drones, 38 reached targets",,True,https://t.me/kpszsu/57963,True,498,38,68
+2026-03-24,06:00,"Massive strike: 34 missiles, 948 drones, 51 reached targets",,True,"https://t.me/kpszsu/58637
+https://t.me/kpszsu/58685",True,982,51,34
+2026-04-01,06:00,"Massive strike: 0 missiles, 700 drones, 57 reached targets",,True,"https://t.me/kpszsu/59224
+https://t.me/kpszsu/59251",True,700,57,0
+2026-04-02,06:00,"Massive strike: 0 missiles, 172 drones, 25 reached targets",,True,https://t.me/kpszsu/59274,True,172,25,0
+2026-04-03,06:00,"Massive strike: 37 missiles, 542 drones, 38 reached targets",,True,https://t.me/kpszsu/59417,True,579,38,37
+2026-04-16,06:00,"Massive strike: 44 missiles, 659 drones, 36 reached targets",,True,https://t.me/kpszsu/60113,True,703,36,44
+2026-05-01,06:00,"Massive strike: 0 missiles, 619 drones, 41 reached targets",,True,"https://t.me/kpszsu/61032
+https://t.me/kpszsu/61079",True,619,41,0
+2026-05-14,06:00,"Massive strike: 56 missiles, 1567 drones, 109 reached targets",,True,"https://t.me/kpszsu/61846
+https://t.me/kpszsu/61764
+https://t.me/kpszsu/61715",True,1623,109,56
+2026-06-02,06:00,"Massive strike: 73 missiles, 656 drones, 87 reached targets",,True,https://t.me/kpszsu/63655,True,729,87,73
+2026-06-15,06:00,"Massive strike: 70 missiles, 611 drones, 49 reached targets",,True,https://t.me/kpszsu/65248,True,681,49,70

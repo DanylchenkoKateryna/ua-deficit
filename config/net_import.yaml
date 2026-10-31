@@ -1,0 +1,45 @@
+# Real-data scenario: net imports (MW) as a measured deficit proxy, 2019-07 .. 2026-06.
+#   docker compose run --rm deficit-offline <step> --config config/net_import.yaml
+# Ukraine was a net exporter before the war and imports heavily when generation is short, so a rise in net
+# imports tracks the deficit that neighbouring systems could cover. Imports are capped by interconnector
+# capacity, so this understates deficits at the cap (the outage scenario covers that part).
+# Everything not listed here is inherited from config.yaml.
+extends: config.yaml
+
+scenario: net_import
+
+period:
+  start: "2019-07-01"        # the trade dataset starts here
+  end: "2026-06-30"
+
+split:                        # the thesis split
+  train_end: "2021-12-31 23:00"
+  validation_end: "2023-12-31 23:00"
+
+target:
+  definition: net_import
+  unit: MW
+  recovery_threshold: 500     # daily-mean net import back below 500 MW = recovered
+  recovery_max_days: 90
+  episode_threshold: 800      # daily-mean net import above 800 MW counts as a high-deficit day
+  episode_gap_days: 3
+
+trade:
+  file: 2026_07_01_import_eksport_pohodynno.csv
+
+changepoints:
+  bocpd:
+    scale_floor: 100          # MW
+
+features:
+  lags_hours: [24, 48, 168]
+  use_dam: false              # ablation: lagged day-ahead price / cap did not improve test MAE (outages rolling 0.070 vs 0.069, net import 233.5 vs 234.5 MW)
+
+models:
+  enabled: [seasonal_naive, prophet_static, xgb_static, xgb_rolling, xgb_adaptive, xgb_adaptive_tau_w, xgb_attack, xgb_drift, xgb_rolling_freq]
+
+evaluation:
+  mape_min_abs: 100           # MW; MAPE skips hours where |net import| < 100 MW
+
+tuning:
+  n_trials: 20

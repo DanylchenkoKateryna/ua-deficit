@@ -1,0 +1,19 @@
+date,time_utc,description,capacity_lost_MW,major,source,verified
+2022-02-24,03:00,Full-scale invasion - demand shock (wave 1),,true,public reporting,false
+2022-10-10,05:00,First massive missile strike on energy infrastructure (wave 2),,true,public reporting,false
+2022-10-31,05:00,Massive missile strike on energy infrastructure,,true,public reporting,false
+2022-11-15,12:00,Massive missile strike on energy infrastructure,,true,public reporting,false
+2022-11-23,12:00,Strike followed by nationwide blackout,,true,public reporting,false
+2022-12-16,06:00,Massive missile strike on energy infrastructure,,true,public reporting,false
+2023-03-09,02:00,Massive missile strike on energy infrastructure,,true,public reporting,false
+2024-03-22,03:00,Massive strike on generation incl. DniproHES (wave 3),,true,public reporting,false
+2024-03-29,03:00,Strike on thermal and hydro generation,,true,public reporting,false
+2024-04-11,03:00,Strike destroying Trypilska TPP,,true,public reporting,false
+2024-04-27,03:00,Strike on thermal power plants,,true,public reporting,false
+2024-05-08,03:00,Strike on generation facilities,,true,public reporting,false
+2024-06-01,03:00,Strike on generation facilities,,true,public reporting,false
+2024-08-26,03:00,Large combined missile and drone strike on energy system,,true,public reporting,false
+2024-11-17,04:00,Massive strike on energy infrastructure,,true,public reporting,false
+2024-11-28,04:00,Massive strike on energy infrastructure,,true,public reporting,false
+2024-12-13,04:00,Massive strike on energy infrastructure,,true,public reporting,false
+2024-12-25,04:00,Massive strike on energy infrastructure,,true,public reporting,false

@@ -1,0 +1,43 @@
+# Real-data scenario: the day-ahead electricity price relative to the price cap (market scarcity indicator), 2019-07 .. 2026-06.
+#   docker compose run --rm deficit-offline <step> --config config/price.yaml
+# The price for hour t is formed the day before delivery from supply offers and demand bids; when supply is short the price
+# runs into the regulatory cap (the first winter of the war: monthly mean 0.96-0.99 of the cap). The ratio price / cap is a
+# measured, hourly, whole-war indicator of how tight the system was. It does not react to individual strike days, so it
+# complements the outage index and the net import instead of replacing them.
+extends: config.yaml
+
+scenario: price
+
+period:
+  start: "2019-07-01"        # the DAM dataset starts here
+  end: "2026-06-30"
+
+split:
+  train_end: "2021-12-31 23:00"        # peacetime
+  validation_end: "2023-12-31 23:00"   # includes the break (autumn 2022) and the first winter
+  # test: 2024-2026
+
+target:
+  definition: dam_price
+  unit: share of price cap
+  recovery_threshold: 0.8
+  recovery_max_days: 90
+  episode_threshold: 0.9      # daily mean price above 90 % of the cap (about the 85th percentile of the peacetime years)
+  episode_gap_days: 3
+
+changepoints:
+  bocpd:
+    hazard_days: 250
+    scale_floor: 0.05
+
+features:
+  lags_hours: [24, 48, 168]
+
+models:
+  enabled: [seasonal_naive, prophet_static, xgb_static, xgb_rolling, xgb_adaptive, xgb_adaptive_tau_w, xgb_attack, xgb_drift, xgb_rolling_freq]
+
+evaluation:
+  mape_min_abs: 0.1
+
+tuning:
+  n_trials: 20
