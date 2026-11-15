@@ -1,11 +1,11 @@
 """Step 1c - ACLED conflict events, filtered to strikes on energy infrastructure.
 
-Two ways to get the data (README §Data sources):
+Two ways to get the data (README §7):
   1. manual export from the ACLED Explorer saved as <data>/raw/acled_export.csv  (preferred), or
   2. the ACLED API with ACLED_EMAIL / ACLED_PASSWORD in .env (OAuth password grant).
 
 The output is a list of *candidates*: ACLED notes must be verified by hand before an
-event is copied into data/external/attacks.csv (thesis §2.1).
+event is copied into data/external/attacks.csv.
 """
 from __future__ import annotations
 

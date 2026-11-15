@@ -1,0 +1,6 @@
+date,number_days,region,number_blackout_consumers,number_blackout_settlements,number_restored_consumers,number_restored_settlements,notes,link
+2024-03-22,1,Харківська,"230 000",,,,,https://example.org/a
+2024-03-23,1,Харківська,,,120000,,,https://example.org/b
+2024-03-24,7,Київ,,12,,,"18.03-24.03
+(multi-line)",https://example.org/c
+2024-03-24,1,Невідома,5,,,,,https://example.org/d

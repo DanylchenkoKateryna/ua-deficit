@@ -4,17 +4,27 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .env
+
+# data and results are unpacked from the zip archives (see README "Data archives")
 data/raw/
 data/interim/
 data/processed/
 data/synthetic/
 artifacts/
 reports/
+
+# Word build intermediates and checks; only the final thesis PDF is kept
 docs/qa/
-docs/*_raw.docx
+docs/__pycache__/
+docs/*_raw*.docx
+docs/~$*
 docs/*.pdf
+!docs/Дипломна_робота_v*.pdf
 
 # Telegram API login session (account credential!)
 data/telegram_session/
 *.session
 *.session-journal
+
+# HTML reviews of thesis versions (local only)
+docs/Рев*ю_*.html

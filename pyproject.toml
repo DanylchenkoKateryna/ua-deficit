@@ -25,7 +25,7 @@ dependencies = [
     "matplotlib>=3.8",
     "holidays>=0.40",
     "prophet>=1.1.5",
-    "telethon>=1.36",
+    "h5py>=3.10",
 ]
 
 [project.optional-dependencies]

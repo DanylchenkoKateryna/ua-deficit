@@ -1,5 +1,5 @@
 # Main pipeline configuration. All timestamps are UTC unless stated otherwise.
-# Every value here can be changed without touching code; see README.md §Configuration.
+# Every value here can be changed without touching code; see README §3.
 
 paths:
   data_dir: data            # real data root (raw/, interim/, processed/, external/)
@@ -47,8 +47,8 @@ preprocessing:
   medium_gap_hours: 24       # 3-24h: same hour of previous week; > 24h: left NaN and flagged
 
 target:
-  # balance        : deficit = actual_load - (generation_total + net_import)  (thesis §2.2), unit MW
-  # demand_gap     : deficit = counterfactual peacetime demand - actual_load (see README caveat), unit MW
+  # balance        : deficit = actual_load - (generation_total + net_import) , unit MW
+  # demand_gap     : deficit = counterfactual peacetime demand - actual_load, unit MW
   # outage_extent  : deficit = share of regions under planned outages, from the Ukrenergo outage
   #                  dataset (config/outages.yaml). Real data, but an index, not MW.
   definition: balance
@@ -122,7 +122,16 @@ telegram:                    # `deficit extract`: structured strike-impact datas
   restoration_min_obs: 3           # restoration-duration models need this many observed durations known at the issue time
   restoration_alphas: [1.0, 10.0]  # penalty grid, design chosen on the validation period only
   regime_lookback_days: 60
+  duration_alphas: [1.0, 10.0, 100.0]   # restoration --dev (national duration): penalty grid
+  duration_dev_min_obs: 15         # restoration --dev: observed past durations needed before the first forecast
   region_validation_end: "2024-12-31"   # oblast-level restoration forecast: strikes up to here = validation (design choice), later = test
   region_alphas: [1.0, 10.0, 100.0]
   region_min_obs: 30               # observed past episodes needed before the first oblast-level forecast
   region_min_oblast: 3             # oblast median baseline needs this many past observed episodes of the oblast
+  region_cv_folds: 5               # region-restoration --dev: rolling-origin CV folds over the strikes before the test start
+  region_dev_min_obs: 15           # region-restoration --dev only: warm-up (normal mode keeps region_min_obs)
+  region_long_hours: [24, 72, 168] # dev binary task: P(restoration > T hours); thresholds fixed before the test period was looked at
+  region_long_primary: 72          # primary threshold of the binary task (fixed in advance)
+  region_early_hours: 3            # early-impact oblast features: posts within this many hours after strike_at (K chosen on the dev CV only)
+  region_early_candidates: [3, 6]  # region-restoration --dev compares these K
+  strike_list: data/external/attacks.csv   # strikes of collect --windows-from-attacks / extract / region-restoration; config/telegram_extended.yaml switches it to attacks_extended.csv

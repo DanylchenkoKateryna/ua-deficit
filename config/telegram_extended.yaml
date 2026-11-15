@@ -1,0 +1,13 @@
+# Telegram regional pipeline on the EXTENDED strike list (attacks.csv + days with attack reports in the continuous channels,
+# built by `deficit derive-strikes`; see docs/preregistration_region.md, Amendment 1).
+#   deficit --config config/telegram_extended.yaml collect --windows-from-attacks --channels ... --plan-only
+#   deficit --config config/telegram_extended.yaml extract
+#   deficit --config config/telegram_extended.yaml region-restoration [--dev]
+# Outputs: data/processed/telegram_extended, reports/telegram_extended. data/raw/telegram (incl. _windows.csv) stays shared.
+# The forecasting pipeline (ingest ... events) must not be run with this file: it keeps using attacks.csv.
+extends: config.yaml
+
+scenario: telegram_extended
+
+telegram:
+  strike_list: data/external/attacks_extended.csv

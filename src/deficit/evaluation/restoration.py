@@ -264,10 +264,9 @@ def choose_on_validation(scores: pd.DataFrame, alphas: list[float]) -> dict[str,
 
 def run_restoration(cfg: Config) -> dict[str, pd.DataFrame]:
     tc = cfg.telegram
-    root = cfg._abs(cfg.paths.data_dir)                                  # real data even if --synthetic is passed
-    posts = pd.read_parquet(root / "processed" / "telegram_posts.parquet")
+    posts = pd.read_parquet(cfg.telegram_processed_dir / "telegram_posts.parquet")   # scenario-scoped (telegram_extended: extended strike list)
     posts = add_derived(posts) if "impact_post" not in posts.columns else posts
-    strikes = load_strikes(root / "external" / "attacks.csv")
+    strikes = load_strikes(cfg.strike_list_path)
     prm = EpisodeParams(horizon_days=tc.episode_horizon_days, relapse_days=tc.relapse_days,
                         national_channels=tuple(tc.national_channels), pre_strike_days=tc.pre_strike_days)
     nat = posts[posts["channel"].isin(prm.national_channels)]

@@ -1,4 +1,4 @@
-"""Prophet baseline - the 'null hypothesis' model (thesis §3.2).
+"""Prophet baseline - the 'null hypothesis' model.
 
 Trained once on peacetime data and never retrained, so its error growth after each attack
 wave quantifies the structural breaks.

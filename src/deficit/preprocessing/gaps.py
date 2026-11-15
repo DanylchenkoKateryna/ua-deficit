@@ -1,4 +1,4 @@
-"""Missing-value strategy from thesis §2.2.
+"""Missing-value strategy.
 
   gap <= short  (3 h)   -> linear interpolation
   short < gap <= medium (24 h) -> same hour one week earlier

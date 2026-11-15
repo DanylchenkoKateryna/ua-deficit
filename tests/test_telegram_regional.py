@@ -255,3 +255,65 @@ def test_load_window_info(tmp_path):
     w = tr.load_window_info(y, tmp_path)
     assert list(w) == ["a"] and w["a"]["continuous_from"] == T("2024-11-01")
     assert tr._strike_window(w["a"], T("2024-03-22")) == (T("2024-03-21"), T("2024-03-26")) and tr._strike_window(w["a"], T("2024-04-01")) is None
+
+
+def test_strike_window_is_the_union_of_overlapping_logged_windows():
+    # an older short window and a later merged window (more strikes) both hold 2024-03-22
+    win = pd.DataFrame({"window_start": [T("2024-03-21"), T("2024-03-21")], "window_end": [T("2024-03-30"), T("2024-04-06")],
+                        "strikes": ["2024-03-22", "2024-03-22|2024-03-29"]})
+    info = {"continuous_from": None, "windows": win}
+    assert tr._strike_window(info, T("2024-03-22")) == (T("2024-03-21"), T("2024-04-06"))
+    assert tr._strike_window(info, T("2024-03-29")) == (T("2024-03-21"), T("2024-04-06"))
+
+
+# ---------------------------------------------------------------- regional gold v2 (dev / holdout halves)
+GOLD_V2 = ("dev", "holdout")
+
+
+def _gold_v2(half: str) -> pd.DataFrame:
+    return pd.read_csv(Path(__file__).parent / "fixtures" / f"telegram_region_gold_v2_{half}.csv", dtype=str, keep_default_na=False)
+
+
+@pytest.mark.parametrize("half", GOLD_V2)
+def test_region_gold_v2_file_is_well_formed(half):
+    g = _gold_v2(half)
+    assert len(g) >= 100 and not g.duplicated(["channel", "post_id"]).any()
+    assert list(g.columns) == ["channel", "post_id", "stratum"] + [c for c, _ in tr.GOLD_FIELDS]
+    assert {"kw", "other", "restore_kw"} <= set(g["stratum"])
+    for col, _ in tr.GOLD_FIELDS:
+        for v in g[col]:
+            for item in tr._gold_items(v):
+                assert item.split(":")[0] in tr.OBLASTS, (half, col, item)
+    old = pd.read_csv(Path(__file__).parent / "fixtures" / "telegram_region_gold.csv", dtype=str, keep_default_na=False)
+    assert not set(zip(g.channel, g.post_id)) & set(zip(old.channel, old.post_id))
+
+
+def test_region_gold_v2_halves_are_disjoint_and_every_field_has_positives():
+    d, h = _gold_v2("dev"), _gold_v2("holdout")
+    assert not set(zip(d.channel, d.post_id)) & set(zip(h.channel, h.post_id))
+    for half in (d, h):
+        for col, _ in tr.GOLD_FIELDS:
+            assert (half[col] != "").any(), col
+
+
+def test_scorer_counts_emergency_outages_as_schedules_of_any_kind():
+    facts = pd.DataFrame([{"channel": "c", "post_id": 1, "oblast": "Sumy", "attack": False, "consumers_without_power": np.nan,
+                           "schedules": False, "emergency": True, "lifted": False, "restoration_power": None}])
+    gold = pd.DataFrame({"channel": ["c"], "post_id": [1], "stratum": ["x"], "attack": [""], "consumers": [""], "schedules": ["Sumy"],
+                         "emergency": ["Sumy"], "lifted": [""], "restored_full": [""], "restored_any": [""]})
+    assert tr.score_region_gold(gold, facts).set_index("field").loc["schedules", "tp"] == 1
+    assert tr.score_region_gold(gold, facts, emergency_is_schedule=False).set_index("field").loc["schedules", "fn"] == 1
+
+
+def test_headline_oblast_governs_the_whole_post_and_followup_sentence_is_carried():
+    nl = chr(10)
+    raw = _raw([("ukrenergo", "2024-03-22 06:00", nl.join(["Одеська область: ДТЕК повертає світло після нічної атаки",
+                                                          "Було знеструмлено 1063 родини.",
+                                                          "Станом на 17:00 всі оселі знову зі світлом."])),
+                ("poltavskaoda", "2024-03-22 07:00", "Уночі ворог завдав ударів по об'єктах енергетики на Одещині. "
+                                                    "На ранок без світла залишаються понад 90 тисяч споживачів.")])
+    posts = te.add_derived(te.extract_frame(raw))
+    facts = tr.region_facts(posts, raw, {"poltavskaoda": "Poltava"})
+    a = fact(facts, "ukrenergo", 1, "Odesa")
+    assert a["restoration_power"] == "full" and a["consumers_without_power"] == 1063
+    assert fact(facts, "poltavskaoda", 2, "Odesa")["consumers_without_power"] == 90_000

@@ -64,7 +64,7 @@ def load_outages(cfg: Config) -> tuple[pd.DataFrame, dict]:
     path = cfg.raw_dir / cfg.outages.file
     if not path.exists():
         raise FileNotFoundError(f"{path} not found - download the outage CSV from Energy Map "
-                                "(README §Data sources) and save it there")
+                                "(README §7) and save it there")
     raw = pd.read_csv(path)
     missing = {"date", "hour", "outage_use", "outage_amount", "number"} - set(raw.columns)
     if missing:

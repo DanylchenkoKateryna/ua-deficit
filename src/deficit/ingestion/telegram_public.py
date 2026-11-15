@@ -21,7 +21,7 @@ Modes (see ``collect``):
     (lemma-aware, e.g. "відключення" = "відключень", but not the stem "відключен"), so terms must be full word forms.
 
 This module only collects raw posts; text extraction / any use as model input is a later step and must
-respect the no-look-ahead rules (README §5.1) - ``datetime`` is the post publication time.
+respect the no-look-ahead rules (README §6) - ``datetime`` is the post publication time.
 """
 from __future__ import annotations
 
@@ -610,17 +610,51 @@ def tag_window_strike(dt: pd.Timestamp, strikes: list[dict]) -> str | None:
     return "|".join(s["strike"] for s in strikes if s["start"] <= dt < s["end"]) or None
 
 
-def estimate_windows(clock: IdClock, merged: list[dict], page: int = PAGE, probes: int = PLAN_PROBES) -> dict:
+def uncovered(start: pd.Timestamp, end: pd.Timestamp, covered) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """[start, end) minus the union of the `covered` (start, end) intervals: the sub-intervals still to collect."""
+    out, cur = [], start
+    for s, e in sorted(covered):
+        if e <= cur:
+            continue
+        if s >= end:
+            break
+        if s > cur:
+            out.append((cur, s))
+        cur = max(cur, e)
+    if cur < end:
+        out.append((cur, end))
+    return out
+
+
+def covered_intervals(log_df: pd.DataFrame, channel: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    """Already collected [window_start, window_end) intervals of a channel (from `_windows.csv`)."""
+    d = log_df[log_df["channel"] == channel]
+    return list(zip(d["window_start"], d["window_end"]))
+
+
+def estimate_windows(clock: IdClock, merged: list[dict], page: int = PAGE, probes: int = PLAN_PROBES,
+                     covered=None) -> dict:
     """Upper-bound request count of the merged windows: ids in the window / page size (ids >= posts, gaps are deleted
-    posts) + `probes` per window."""
+    posts) + `probes` per window.  With `covered` (logged intervals of the channel) only the uncovered sub-intervals
+    count (each with its own probes); a fully covered window costs 0.  `requests_full` ignores `covered`."""
     rows = []
     top = clock.max_id
-    for w in merged:
-        a, b = clock.estimate(w["start"]), min(clock.estimate(w["end"]), max(top, 1))
+
+    def cost(a_ts, b_ts):
+        a, b = clock.estimate(a_ts), min(clock.estimate(b_ts), max(top, 1))
         ids = max(b - a, page)
-        rows.append({"start": w["start"], "end": w["end"], "strikes": len(w["strikes"]), "ids": ids,
-                     "requests": math.ceil(ids / page) + probes})
-    return {"windows": rows, "ids": sum(r["ids"] for r in rows), "requests": sum(r["requests"] for r in rows)}
+        return ids, math.ceil(ids / page) + probes
+
+    for w in merged:
+        gaps = uncovered(w["start"], w["end"], covered) if covered else [(w["start"], w["end"])]
+        ids = req = 0
+        for g in gaps:
+            i, r = cost(*g)
+            ids, req = ids + i, req + r
+        rows.append({"start": w["start"], "end": w["end"], "strikes": len(w["strikes"]), "ids": ids, "requests": req,
+                     "requests_full": cost(w["start"], w["end"])[1], "gaps": len(gaps)})
+    return {"windows": rows, "ids": sum(r["ids"] for r in rows), "requests": sum(r["requests"] for r in rows),
+            "requests_full": sum(r["requests_full"] for r in rows), "todo": sum(1 for r in rows if r["gaps"])}
 
 
 def request_rate(min_delay: float = MIN_DELAY, max_delay: float = MAX_DELAY, cap: int = MAX_REQUESTS_PER_HOUR) -> float:
@@ -630,16 +664,21 @@ def request_rate(min_delay: float = MIN_DELAY, max_delay: float = MAX_DELAY, cap
 
 def select_strikes(attacks: pd.DataFrame, clocks: dict[str, IdClock], since: str, window_days: int = 7,
                    pre_days: int = 1, share: float = 1.0, max_hours: float = 6.0,
-                   until: dict[str, str] | None = None) -> dict:
+                   until: dict[str, str] | None = None, covered: dict[str, list] | None = None) -> dict:
     """Which strikes to collect.  Outcome-independent rule: every strike on/after `since` when the estimated total time
     fits `max_hours`; otherwise strikes in descending `weapons_through` (ties: earlier first) until the budget is met
-    (the largest k whose estimate fits), and never more than ceil(share * n)."""
-    until = until or {}
+    (the largest k whose estimate fits), and never more than ceil(share * n).  `covered` (channel -> logged intervals)
+    makes the estimates count only what is not collected yet."""
+    until, covered = until or {}, covered or {}
     a = attacks.copy()
     a["date"] = pd.to_datetime(a["date"]).dt.strftime("%Y-%m-%d")
     a = a[a["date"] >= pd.Timestamp(since).strftime("%Y-%m-%d")].drop_duplicates("date")
     a["_w"] = pd.to_numeric(a["weapons_through"], errors="coerce").fillna(-1) if "weapons_through" in a else -1.0
-    order = a.sort_values(["_w", "date"], ascending=[False, True])
+    # extended strike list (attacks_extended.csv): derived days have no weapons_through (-1), so after the Air Force strikes
+    # they are ranked by the number of channels, then of attack-report posts that day (never by consumers / restoration)
+    for col, key in (("n_channels", "_n"), ("n_attack_posts", "_p")):
+        a[key] = pd.to_numeric(a[col], errors="coerce").fillna(0) if col in a else 0.0
+    order = a.sort_values(["_w", "_n", "_p", "date"], ascending=[False, False, False, True])
     rate = request_rate()
     pause_h = max(len(clocks) - 1, 0) * CHANNEL_PAUSE / 3600.0
 
@@ -647,11 +686,11 @@ def select_strikes(attacks: pd.DataFrame, clocks: dict[str, IdClock], since: str
         per, tot = {}, 0
         for ch, clk in clocks.items():
             ds = [d for d in dates if d <= until.get(ch, "9999")]
-            est = (estimate_windows(clk, merge_windows(strike_windows(ds, window_days, pre_days))) if ds
-                   else {"windows": [], "ids": 0, "requests": 0})
+            est = (estimate_windows(clk, merge_windows(strike_windows(ds, window_days, pre_days)), covered=covered.get(ch))
+                   if ds else {"windows": [], "ids": 0, "requests": 0, "requests_full": 0, "todo": 0})
             per[ch] = est
             tot += est["requests"]
-        return {"per_channel": per, "requests": tot, "hours": tot / rate + pause_h}
+        return {"per_channel": per, "requests": tot, "requests_full": sum(e["requests_full"] for e in per.values()), "hours": tot / rate + pause_h}
 
     all_dates = list(order["date"])
     k_share = max(1, math.ceil(share * len(all_dates)))
@@ -666,7 +705,7 @@ def select_strikes(attacks: pd.DataFrame, clocks: dict[str, IdClock], since: str
             if c["hours"] > max_hours:
                 break
             k, res = kk, c
-        rule = (f"strikes in descending weapons_through (ties: earlier date first) while the estimated total time stays within "
+        rule = (f"strikes in descending weapons_through, then n_channels, n_attack_posts (ties: earlier date first) while the estimated total time stays within "
                 f"{max_hours:g} h: top {k} of {len(all_dates)}")
     chosen = sorted(all_dates[:k])
     return {"selected": chosen, "excluded": sorted(set(all_dates) - set(chosen)), "cost": res, "rule": rule,
@@ -675,14 +714,14 @@ def select_strikes(attacks: pd.DataFrame, clocks: dict[str, IdClock], since: str
 
 
 def write_plan(plan: dict, path: Path, window_days: int, pre_days: int, max_hours: float, since: str,
-               until: dict[str, str] | None = None) -> None:
+               until: dict[str, str] | None = None, strike_list: str = "attacks.csv") -> None:
     c = plan["cost"]
     md = ["# Telegram window collection: plan", "",
           f"Generated {pd.Timestamp.now('UTC'):%Y-%m-%d %H:%M} UTC by `deficit collect --windows-from-attacks`. The estimate "
           "makes no request: it uses the (post id, time) points already stored per channel (keyword-search samples) and "
           "linear interpolation between them.", "",
           "## Selection rule (does not look at any outage outcome)", "",
-          f"- Candidates: every row of `data/external/attacks.csv` dated {since} or later ({plan['n_strikes']} strikes).",
+          f"- Candidates: every row of `data/external/{strike_list}` dated {since} or later ({plan['n_strikes']} strikes).",
           f"- Window of a strike: [strike day - {pre_days} d, strike day + {window_days} d], both days included, UTC; overlapping "
           "windows (chained strikes) are merged.",
           f"- Rule applied: **{plan['rule']}**. Strikes are ranked by `weapons_through` "
@@ -702,11 +741,13 @@ def write_plan(plan: dict, path: Path, window_days: int, pre_days: int, max_hour
            "## Estimate", "",
            f"Requests per window = ids in the window / {PAGE} (an upper bound: deleted posts leave id gaps) + {PLAN_PROBES} "
            f"probes (hard limit {PROBES_PER_WINDOW} per window).", "",
-           "| channel | windows | est. ids | est. requests | est. hours |", "|---|---|---|---|---|"]
+           "Intervals already listed in `_windows.csv` are subtracted (only the uncovered parts are requested); "
+           "\"full\" is the cost of the same windows without that.", "",
+           "| channel | windows | to do | est. ids | est. requests | full requests | est. hours |", "|---|---|---|---|---|---|---|"]
     for ch, e in c["per_channel"].items():
-        md.append(f"| {ch} | {len(e['windows'])} | {e['ids']:.0f} | {e['requests']} | "
+        md.append(f"| {ch} | {len(e['windows'])} | {e['todo']} | {e['ids']:.0f} | {e['requests']} | {e['requests_full']} | "
                   f"{e['requests'] / plan['rate_per_hour']:.2f} |")
-    md += [f"| **total** | | | {c['requests']} | **{c['hours']:.2f}** (incl. channel pauses) |", "",
+    md += [f"| **total** | | | | {c['requests']} | {c['requests_full']} | **{c['hours']:.2f}** (incl. channel pauses) |", "",
            f"With all {plan['n_strikes']} strikes the estimate would be {plan['full_cost']['requests']} requests "
            f"({plan['full_cost']['hours']:.2f} h).", "", "## Strikes", "",
            "| date | weapons_through | selected |", "|---|---|---|"]
@@ -747,7 +788,9 @@ def collect_channel_windows(channel: str, dates: list[str], data_root: Path, win
                             fetcher: Fetcher | None = None) -> dict:
     """Window mode for one channel: the posts of the (merged) windows of the strike `dates`, with ``window_strike`` set,
     merged into the channel's Parquet (existing posts kept).  Windows already listed in ``_windows.csv`` are skipped
-    (resume).  Saved after every window and every CHECKPOINT_PAGES requests."""
+    (resume).  Gap filling: the union of the channel's logged intervals is subtracted from each merged window and only
+    the uncovered sub-intervals are requested; the full window is then logged, so the logged union stays the observed
+    period.  Saved after every window and every CHECKPOINT_PAGES requests."""
     fetcher = _Counted(fetcher or Fetcher())
     path = store_path(data_root, channel)
     store = load_store(path)
@@ -755,7 +798,7 @@ def collect_channel_windows(channel: str, dates: list[str], data_root: Path, win
     clock.add_frame(store)
     merged = merge_windows(strike_windows(dates, window_days, pre_days))
     log_df = load_windows_log(data_root)
-    done = {(r.channel, r.window_start, r.window_end) for r in log_df.itertuples()}
+    cov = covered_intervals(log_df, channel)
     stats = {"channel": channel, "windows": 0, "skipped": 0, "posts": 0, "requests": 0, "probes": 0}
 
     def save(posts: list[dict]) -> None:
@@ -765,28 +808,34 @@ def collect_channel_windows(channel: str, dates: list[str], data_root: Path, win
             save_store(store, path)
 
     for i, w in enumerate(merged):
-        if (channel, w["start"], w["end"]) in done:
+        gaps = uncovered(w["start"], w["end"], cov)
+        if not gaps:
             stats["skipped"] += 1
             continue
         n0 = fetcher.n
-        saved = [0]
 
         def tagged(buf, w=w):
             return [dict(p, window_strike=tag_window_strike(p["datetime"], w["strikes"])) for p in buf]
 
-        def ckpt(buf, tagged=tagged, saved=saved):
-            save(tagged(buf))
-            saved[0] += len(buf)
+        posts, probes, n_pages, at_end = [], 0, 0, False
+        for g0, g1 in gaps:
+            saved = [0]
 
-        after, pre, probes = locate_start(fetcher, channel, clock, w["start"])
-        posts, n_pages, at_end = read_window(fetcher, channel, after, pre, w["start"], w["end"], clock, ckpt)
-        save(tagged(posts[saved[0]:]))
+            def ckpt(buf, tagged=tagged, saved=saved):
+                save(tagged(buf))
+                saved[0] += len(buf)
+
+            after, pre, pr = locate_start(fetcher, channel, clock, g0)
+            ps, n_p, at_end = read_window(fetcher, channel, after, pre, g0, g1, clock, ckpt)
+            save(tagged(ps[saved[0]:]))
+            posts, probes, n_pages = posts + ps, probes + pr, n_pages + n_p
         ids = [p["post_id"] for p in posts]
         _log_window(data_root, {"channel": channel, "window_start": w["start"], "window_end": w["end"],
                                 "strikes": "|".join(s["strike"] for s in w["strikes"]),
                                 "first_id": min(ids) if ids else None, "last_id": max(ids) if ids else None,
                                 "n_posts": len(posts), "requests": fetcher.n - n0, "probes": probes,
                                 "end_of_channel": at_end, "collected_at": pd.Timestamp.now("UTC").isoformat()})
+        cov = cov + [(w["start"], w["end"])]
         stats["windows"] += 1
         stats["posts"] += len(posts)
         stats["probes"] += probes

@@ -95,11 +95,12 @@ def load_window_info(sources_path: Path, data_root: Path | None = None) -> dict[
 
 
 def _strike_window(info: dict, strike_day: pd.Timestamp):
-    """(start, end) of the finished window that holds the strike day, else None."""
+    """(start, end) of the finished windows that hold the strike day, else None.  A later run with more strikes can log
+    a merged window that overlaps an older one; all of them hold the strike day, so their union is one interval."""
     w = info["windows"]
     key = strike_day.strftime("%Y-%m-%d")
     hit = w[w["strikes"].astype(str).map(lambda x: key in x.split("|"))] if len(w) else w
-    return (hit["window_start"].iloc[0], hit["window_end"].iloc[0]) if len(hit) else None
+    return (hit["window_start"].min(), hit["window_end"].max()) if len(hit) else None
 
 
 # --------------------------------------------------------------------------------------------------
@@ -116,9 +117,13 @@ def _own_fact(row, oblast: str) -> dict:
             "spans": json.dumps({k: v for k, v in spans.items() if k in FACT_SPAN_FIELDS}, ensure_ascii=False)}
 
 
-def _snippets(t: str, segs: list[tuple[int, int]], hits: list[tuple[int, int]]) -> list[tuple[int, int, int]]:
+def _snippets(t: str, segs: list[tuple[int, int]], hits: list[tuple[int, int]],
+              seg_regions: dict[int, set[str]] | None = None) -> list[tuple[int, int, int]]:
     """Contiguous text slices (start, end, segment_index) of the sentences containing the hits; a sentence that ends with ':'
-    (list header) before a hit sentence is included."""
+    (list header) before a hit sentence is included.  When the hit sentence names exactly one oblast, the next sentence is
+    read together with it if it names no oblast at all ("... ударів по об'єктах на Одещині. На ранок без світла залишаються
+    90 тисяч споживачів.": the follow-up sentence is about the same oblast)."""
+    seg_regions = seg_regions or {}
     seen, out = set(), []
     for pos, _ in hits:
         for k, (s, e) in enumerate(segs):
@@ -127,6 +132,8 @@ def _snippets(t: str, segs: list[tuple[int, int]], hits: list[tuple[int, int]]) 
                 start = s
                 if k and t[slice(*segs[k - 1])].rstrip().endswith(":"):
                     start = segs[k - 1][0]
+                if k + 1 < len(segs) and len(seg_regions.get(k, ())) == 1 and not seg_regions.get(k + 1):
+                    e = segs[k + 1][1]
                 out.append((start, e, k))
     return out
 
@@ -154,7 +161,12 @@ def _text_facts(row, text: str, own: str | None) -> list[dict]:
                "schedules": False, "emergency": False, "lifted": False, "restoration_power": None, "consumers_restored": None,
                "multi_region": False}
         spans: dict[str, list[dict]] = {}
-        for start, end, k in _snippets(t, segs, hits.get(name, [])):
+        snips = _snippets(t, segs, hits.get(name, []), seg_regions)
+        if len(row["regions"]) == 1 and name in seg_regions.get(0, ()) and len(segs) > 1:
+            # a post about one oblast whose first line (headline) names it: "Одеська область: ДТЕК повертає світло ...";
+            # the sentences below do not repeat the name but belong to it
+            snips = [(0, len(t), 0)]
+        for start, end, k in snips:
             r = extract_post(text[start:end])
             multi = len(seg_regions.get(k, set())) > 1
             sp = json.loads(r["spans"]) if r["spans"] else {}
@@ -408,14 +420,16 @@ def _gold_items(v) -> set[str]:
     return {x.strip() for x in str(v).split(";") if x.strip()}
 
 
-def _pred_items(g: pd.DataFrame, field: str) -> set[str]:
+def _pred_items(g: pd.DataFrame, field: str, emergency_is_schedule: bool = True) -> set[str]:
+    """Predicted (oblast) items of one gold field.  The gold definition of `schedules` includes emergency outage schedules
+    (GAV) and emergency outages announced for an oblast, so `emergency` implies `schedules` unless switched off."""
     out = set()
     for r in g.itertuples():
         if field == "attack" and r.attack:
             out.add(r.oblast)
         elif field == "consumers" and r.consumers_without_power is not None and not pd.isna(r.consumers_without_power):
             out.add(f"{r.oblast}:{r.consumers_without_power:g}")
-        elif field == "schedules" and r.schedules:
+        elif field == "schedules" and (r.schedules or (emergency_is_schedule and r.emergency)):
             out.add(r.oblast)
         elif field == "emergency" and r.emergency:
             out.add(r.oblast)
@@ -428,7 +442,8 @@ def _pred_items(g: pd.DataFrame, field: str) -> set[str]:
     return out
 
 
-def score_region_gold(gold: pd.DataFrame, facts: pd.DataFrame, raw_keys: pd.DataFrame | None = None) -> pd.DataFrame:
+def score_region_gold(gold: pd.DataFrame, facts: pd.DataFrame, raw_keys: pd.DataFrame | None = None,
+                      emergency_is_schedule: bool = True) -> pd.DataFrame:
     """Per-field TP/FP/FN of (oblast) sets: a post counts for an oblast only when the extractor and the label agree on
     that oblast. Gold columns: channel, post_id, stratum, one column per GOLD_FIELDS name with ';'-separated oblast codes
     (`consumers`: `Oblast:value`)."""
@@ -439,7 +454,7 @@ def score_region_gold(gold: pd.DataFrame, facts: pd.DataFrame, raw_keys: pd.Data
         tp = fp = fn = 0
         for r in gold.itertuples():
             g = keyed.get((r.channel, r.post_id), empty)
-            gs, ps = _gold_items(getattr(r, name)), _pred_items(g, field)
+            gs, ps = _gold_items(getattr(r, name)), _pred_items(g, field, emergency_is_schedule)
             tp += len(gs & ps)
             fp += len(ps - gs)
             fn += len(gs - ps)

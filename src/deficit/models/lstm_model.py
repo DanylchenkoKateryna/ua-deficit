@@ -1,4 +1,4 @@
-"""LSTM on sequences of issue-time-safe feature rows (thesis §1.5, §3.2).
+"""LSTM on sequences of issue-time-safe feature rows.
 
 The input for target row t is the window of feature rows [t-L+1 .. t]; each of those rows only
 contains information known at its own issue time (<= t - horizon), so no leakage.

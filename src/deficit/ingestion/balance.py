@@ -65,7 +65,7 @@ def fetch_balance(cfg: Config) -> None:
     path = cfg.raw_dir / cfg.balance.file
     if not path.exists():
         raise FileNotFoundError(f"{path} not found - download the hourly balance CSV from Energy Map "
-                                "(README §Data sources) and save it there")
+                                "(README §7) and save it there")
     raw = pd.read_csv(path)
     missing = REQUIRED - set(raw.columns)
     if missing:

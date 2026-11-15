@@ -396,6 +396,8 @@ def summarize(table: pd.DataFrame) -> pd.DataFrame:
 
 
 def run_post_event(cfg: Config) -> dict[str, pd.DataFrame]:
+    if cfg.post_event.strike_list:
+        raise ValueError("post_event.strike_list is read only by `deficit events-dev` (train+validation); `events` also scores the test period")
     pe = cfg.post_event
     H, thr = pe.horizon_days, cfg.target.episode_threshold
     master = read_parquet(cfg.processed_dir / "master.parquet")

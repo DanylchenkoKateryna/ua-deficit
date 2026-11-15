@@ -1,4 +1,4 @@
-"""MAE, RMSE, MAPE (thesis §1.5)."""
+"""MAE, RMSE, MAPE."""
 from __future__ import annotations
 
 import numpy as np

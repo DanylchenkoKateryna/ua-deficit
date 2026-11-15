@@ -199,6 +199,15 @@ class PostEvent(BaseModel):
     duration_objective: str = "reg:absoluteerror"   # median of the duration / of the deficit days
     aft_scale: float = 1.0                     # survival:aft noise scale
     aft_distribution: str = "normal"
+    # event list of the post-event evaluation. "" = the major strikes of attacks.csv (+ BOCPD alarms, as always). A path (e.g. data/external/attacks_extended.csv)
+    # = the extended list; it is only read by `events-dev` (train+validation, test-blind).
+    strike_list: str = ""
+    min_event_gap_days: int = 0                # extended list: a derived strike closer than this to a kept event is merged into it (major strikes are always kept)
+    dev_gap_sensitivity: list[int] = Field(default_factory=list)   # `events-dev`: further gaps reported as sensitivity
+    dev_min_event_rows: int = 40               # `events-dev`: the event-trained variant abstains with fewer known event days
+    dev_folds: int = 5                         # `events-dev`: consecutive blocks of events (rolling-origin report)
+    dev_block: int = 5                         # `events-dev`: bootstrap block length in consecutive events
+    dev_bootstrap: int = 2000
 
 
 class Evaluation(BaseModel):
@@ -226,11 +235,23 @@ class Telegram(BaseModel):
     restoration_min_obs: int = 3       # a restoration model needs this many OBSERVED durations known at the issue time
     restoration_alphas: list[float] = Field(default_factory=lambda: [1.0, 10.0])   # ridge / AFT penalty (design chosen on validation only)
     regime_lookback_days: int = 60     # look-back for the restriction regime state at the issue time
+    duration_alphas: list[float] = Field(default_factory=lambda: [1.0, 10.0, 100.0])   # `restoration --dev`: ridge / AFT / IPCW penalty grid
+    duration_dev_min_obs: int = 15     # `restoration --dev`: observed past durations needed before the first forecast
     # oblast-level restoration forecast (evaluation/region_restoration.py)
     region_validation_end: str = "2024-12-31"   # strikes up to this date = validation (design choice), later strikes = test
     region_alphas: list[float] = Field(default_factory=lambda: [1.0, 10.0, 100.0])   # ridge / AFT penalty grid
     region_min_obs: int = 30           # observed past episodes needed before the first forecast
     region_min_oblast: int = 3         # oblast median needs this many past observed episodes of the oblast (else global median)
+    region_cv_folds: int = 5           # `region-restoration --dev`: number of rolling-origin CV folds (consecutive blocks of strikes)
+    region_dev_min_obs: int = 15       # `region-restoration --dev` only: warm-up (observed past episodes before the first forecast)
+    region_long_hours: list[float] = Field(default_factory=lambda: [24.0, 72.0, 168.0])   # dev binary task: P(restoration > T h)
+    region_long_primary: float = 72.0  # primary threshold of the binary task (fixed in advance)
+    region_early_hours: float = 3.0    # early-impact features of the oblast use posts within this many hours after strike_at (chosen on the dev CV only)
+    region_early_candidates: list[float] = Field(default_factory=lambda: [3.0, 6.0])   # `--dev` compares these cut-offs
+    region_label_source: str = "telegram"   # `region-restoration --dev` target: telegram | energy_map (Energy Map event records, DEV ONLY; the normal/test mode needs telegram)
+    energy_map_test_end: str = "2026-06-26"   # `energy-map-test`: last strike day of the test (frozen protocol)
+    region_exclude_oblasts: list[str] = Field(default_factory=list)   # oblast codes dropped from the regional dev table (e.g. front-line ones)
+    strike_list: str = "data/external/attacks.csv"   # strikes of the Telegram regional steps (collect windows, extract, region-restoration); relative to the project root
 
 
 class Config(BaseModel):
@@ -287,6 +308,16 @@ class Config(BaseModel):
     def external_dir(self) -> Path:
         # manually curated inputs (attacks.csv); synthetic runs get their own generated copy
         return self.data_root / "external"
+
+    @property
+    def strike_list_path(self) -> Path:
+        """Strike list of the Telegram regional steps (telegram.strike_list); the forecasting pipeline always uses attacks.csv."""
+        return self._abs(Path(self.telegram.strike_list))
+
+    @property
+    def telegram_processed_dir(self) -> Path:
+        """Processed Telegram tables of this scenario (real data root even for --synthetic); raw/ stays shared."""
+        return self._scoped(self._abs(self.paths.data_dir) / "processed")
 
     @property
     def artifacts_dir(self) -> Path:

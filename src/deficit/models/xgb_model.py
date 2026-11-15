@@ -1,4 +1,4 @@
-"""XGBoost on lag / rolling / calendar / weather / attack features (thesis §1.5)."""
+"""XGBoost on lag / rolling / calendar / weather / attack features."""
 from __future__ import annotations
 
 import numpy as np

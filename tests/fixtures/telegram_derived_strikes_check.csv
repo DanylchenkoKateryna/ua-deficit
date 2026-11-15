@@ -1,0 +1,61 @@
+date,stratum,n_channels,n_attack_posts,near_major,label,oblasts,note
+2023-01-03,1ch,1,1,False,yes,,"ukrenergo: new strikes on energy facilities in the east and south, damage to distribution networks; oblasts not named"
+2023-01-04,1ch,1,1,False,unclear,Donetsk,"dtek_ua: missile strike on Kramatorsk injured a DTEK worker during repairs; strike on a city, not clearly on energy infrastructure"
+2023-01-13,1ch,1,1,True,no,,Lvivoblenergo: consumption limit explained by consequences of earlier shelling
+2023-02-23,1ch,1,1,False,unclear,Kharkiv;Zaporizhzhia;Kherson,"ukrenergo daily summary: frontline outages from shelling, ongoing rather than a new event"
+2023-05-09,1ch,1,1,False,yes,Chernihiv;Sumy;Kharkiv;Donetsk;Zaporizhzhia;Kherson,ukrenergo: new damage to distribution networks from shelling; rockets did no damage to power plants
+2023-05-29,1ch,1,1,False,no,,"ukrenergo: overnight attack, energy infrastructure reported without new damage"
+2023-12-28,1ch,1,1,False,yes,Kharkiv;Kherson,ukrenergo: new damage in oblenergo networks from shelling
+2024-02-05,1ch,1,1,False,yes,Donetsk;Kharkiv;Kherson,ukrenergo: new shelling damage; Kherson outage of ~2200 consumers
+2024-02-20,1ch,1,1,False,unclear,Dnipropetrovsk;Zaporizhzhia,"ukrenergo: new damage in oblenergo networks, cause not stated in the extract"
+2024-02-28,1ch,1,1,False,yes,Donetsk;Zaporizhzhia;Poltava;Kharkiv;Kherson,ukrenergo: shelling damage and outages in five oblasts
+2024-04-05,1ch,1,1,False,yes,Odesa,ukrenergo: overnight drones attacked energy facilities in Odesa oblast
+2024-04-06,1ch,1,1,False,no,Zaporizhzhia,ukrenergo: ZNPP line restored; it was damaged two days earlier
+2024-07-03,1ch,1,1,False,no,,"ztoe_ua: outage schedules, refers to earlier massive attacks"
+2024-07-26,1ch,1,2,False,yes,Zhytomyr;Chernihiv;Kyiv,ukrenergo: overnight drone strike on Ukrenergo facilities
+2024-08-07,1ch,1,1,False,no,,"sumyoblenergo: donated equipment, generic remark about shelling"
+2024-10-02,1ch,1,2,False,yes,Sumy,ukrenergo: overnight drones on energy facilities in Sumy oblast; ZNPP line damaged the day before
+2025-03-15,1ch,1,2,False,yes,Dnipropetrovsk;Odesa,dtek_ua: massed attack on DTEK facilities
+2025-06-12,1ch,1,1,False,yes,Kherson,"ukrenergo: drone attack, outage restrictions in Kherson"
+2025-09-05,1ch,1,1,False,no,,ukrenergo: staff feature story
+2025-10-24,1ch,1,2,False,yes,Sumy;Zaporizhzhia;Dnipropetrovsk,"ukrenergo: repeated strikes on energy facilities, outages"
+2025-11-14,1ch,1,1,False,yes,,ukrenergo: missile and drone strikes on energy facilities; oblasts cut off in the extract
+2025-12-08,1ch,1,1,False,yes,Donetsk,ukrenergo: overnight strike on energy infrastructure of Donetsk oblast
+2025-12-11,1ch,1,1,False,yes,Odesa,ukrenergo: overnight attack on energy facilities in several oblasts; outages in Odesa
+2026-02-06,1ch,1,1,True,yes,Donetsk;Zaporizhzhia;Kharkiv;Kirovohrad;Dnipropetrovsk,"ukrenergo: strikes on energy infrastructure, outages"
+2026-02-19,1ch,1,1,False,yes,Donetsk;Kharkiv;Sumy,"ukrenergo: shelling and targeted strikes, outages (list cut in the extract)"
+2026-04-10,1ch,1,2,False,yes,Odesa;Zaporizhzhia;Kherson;Sumy,"ukrenergo: drone attacks on energy infrastructure, outages"
+2026-04-11,1ch,1,1,False,yes,Odesa,"dtek_ua: attacks overnight on 10 and 11 April, outages restored"
+2026-07-21,1ch,1,1,False,yes,Kharkiv;Sumy;Donetsk;Zaporizhzhia;Dnipropetrovsk,"ukrenergo: drone and artillery attacks, new outages"
+2026-08-14,1ch,1,1,False,yes,Donetsk;Kharkiv;Sumy,"ukrenergo: drone attacks and shelling, new outages"
+2026-10-13,1ch,1,1,False,yes,Chernihiv;Kharkiv;Donetsk;Zaporizhzhia,"ukrenergo: shelling in frontline regions, new outages"
+2023-01-27,2plus,3,3,True,no,Odesa,day after the 26 Jan massive attack: posts describe its aftermath (the strike itself is on the previous day)
+2023-02-22,2plus,2,2,False,no,,ukrenergo/ztoe: weather outages and mentions of earlier strikes
+2023-04-02,2plus,3,3,False,yes,,dtek_ua: a DTEK thermal plant stopped by shelling that day; oblast not stated; the other two posts are lifting of old restrictions
+2023-06-13,2plus,2,2,False,yes,Dnipropetrovsk;Donetsk;Sumy;Kharkiv;Chernihiv,"dtek_ua/ukrenergo: overnight missile attack on Dnipropetrovsk networks, new damage elsewhere"
+2023-08-21,2plus,2,2,False,yes,Dnipropetrovsk;Donetsk;Kharkiv;Kherson;Zaporizhzhia;Sumy,"ukrenergo/sumyoblenergo: new network damage from shelling, Sumy 46 settlements without power"
+2023-10-04,2plus,2,2,False,yes,Donetsk;Kharkiv;Kherson,ukrenergo: new network damage from combat/shelling
+2024-01-02,2plus,2,3,False,yes,Kyiv_city;Kyiv,"dtek_ua/ukrenergo: massed attack, damaged lines, outages in Kyiv and Kyiv oblast"
+2024-01-08,2plus,2,2,False,unclear,,ukrenergo: morning massed missile attack 'without critical consequences' for the energy system; weather outages
+2024-01-17,2plus,2,2,False,yes,,dtek_ua: frontline thermal plant shelled again; oblast not stated
+2024-02-06,2plus,2,2,False,yes,,ukrenergo: artillery strike on a Ukrenergo substation in the east (oblast not stated)
+2024-02-13,2plus,2,2,False,yes,Dnipropetrovsk,ukrenergo/dtek_ua: drones damaged a thermal plant
+2024-03-30,2plus,2,4,True,yes,Odesa;Sumy;Dnipropetrovsk,dtek_ua: night attack on Odesa grid; emergency outages in Sumy and Dnipropetrovsk
+2024-06-23,2plus,5,7,True,no,,outage schedules after earlier massed attacks; DTEK obituary for colleagues killed the day before
+2024-07-05,2plus,2,2,False,no,,outage schedules only
+2024-08-13,2plus,2,2,False,yes,Chernihiv,ukrenergo: overnight drones on energy facilities in Chernihiv oblast
+2024-12-01,2plus,2,3,False,no,Zaporizhzhia,outage schedules; ZNPP line damaged the previous night is being repaired
+2025-02-25,2plus,2,2,False,no,Odesa,ukrenergo: restrictions due to consequences of earlier drone attacks; sumyoblenergo retrospective
+2025-03-04,2plus,2,3,False,yes,Odesa,dtek_ua: attack on DTEK facility; ukrenergo: overnight drone attack on energy facilities
+2025-10-08,2plus,2,3,False,yes,Donetsk,dtek_ua: strike on a TPP and a coal-processing plant; ukrenergo: outages in several regions
+2025-10-09,2plus,2,2,True,yes,Odesa,dtek_ua: overnight strike on a DTEK facility
+2025-11-03,2plus,2,2,False,yes,,ukrenergo: outages in several oblasts after hostile attacks (oblasts not named)
+2025-11-17,2plus,2,2,False,yes,Odesa;Chernihiv;Kharkiv,"dtek_ua: night attack on DTEK facility; ukrenergo: drone attacks, outages"
+2025-12-31,2plus,2,3,True,yes,Odesa;Kyiv,dtek_ua: attack on two facilities; Vyshhorod after a massed attack; ukrenergo: drone attacks
+2026-01-15,2plus,2,3,False,yes,Zhytomyr;Kharkiv,"ukrenergo/ztoe_ua: overnight strikes on energy infrastructure, outages"
+2026-03-05,2plus,2,2,False,yes,,"ukrenergo: attacks on energy facilities, outages (oblasts not named in the extract)"
+2026-04-06,2plus,2,3,False,yes,Chernihiv;Odesa,ukrenergo: missile and drone attacks; dtek_ua: overnight attack on DTEK facility
+2026-04-08,2plus,3,4,False,yes,Odesa,ukrenergo: drone attacks and shelling; dtek_ua: substation attacked
+2026-06-26,2plus,2,2,False,yes,Poltava;Kharkiv;Kherson;Zaporizhzhia;Dnipropetrovsk;Odesa,"ukrenergo: drone and missile attacks, new outages; dtek_ua: Odesa facility attacked"
+2026-07-31,2plus,2,2,False,yes,Donetsk;Sumy;Kharkiv;Mykolaiv,"ukrenergo: attacks, new outages"
+2026-08-28,2plus,2,2,False,yes,Odesa;Mykolaiv;Kharkiv;Kyiv,"ukrenergo: strikes, new outages; dtek_ua: Odesa facilities damaged"

@@ -2,7 +2,7 @@
 
 File: <data>/external/attacks.csv with columns
   date, time_utc, description, capacity_lost_MW, major, source, verified
-capacity_lost_MW is the key covariate (thesis §2.1) and must be filled from official reports.
+capacity_lost_MW is the key covariate and must be filled from official reports.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ REQUIRED = ["date", "major"]
 def load_attacks(cfg: Config) -> pd.DataFrame:
     path = cfg.external_dir / "attacks.csv"
     if not path.exists():
-        raise FileNotFoundError(f"{path} missing - create it (see README §Attack chronology)")
+        raise FileNotFoundError(f"{path} missing - the strike list is part of the repository")
     df = pd.read_csv(path)
     missing = [c for c in REQUIRED if c not in df.columns]
     if missing:

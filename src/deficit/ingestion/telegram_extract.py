@@ -105,7 +105,7 @@ ENERGY_ABBR = re.compile(r"\b[ЗЧ]?(?:ТЕС|ТЕЦ|ГЕС|ГАЕС|АЕС)\b|\
 RECENT = _rx(r"вночі|уночі|вранці|ввечері|сьогодні|вчора|минулої (?:доби|ночі)|цієї ночі|протягом доби|на ранок|"
              r"напередодні|у ніч|в ніч|цього ранку|минулу добу|впродовж доби|протягом ночі|\bнов\w+ знеструмлен|"
              r"продовжу\w+ (?:атак|обстр)|триває ліквідація|тривають аварійно|тривають (?:відновлю|ремонт)|"
-             r"вже розпочат|триває поступов|"
+             r"вже розпочат|триває поступов|протягом\s+дня|за\s+день|упродовж\s+дня|впродовж\s+дня|усю\s+ніч|всю\s+ніч|за\s+ніч|"
              r"повітряної\s+тривоги|під\s+час\s+(?:\w+\s+)?(?:масованої|нічної|ранкової|атаки|обстрілу)|"
              r"після\s+(?:\w+\s+)?(?:нічн|ранков|масован|вчорашн|ворожого|російськ)\w*\s+(?:обстріл|атак|удар)|"
              r"\d{1,2}\.\d{1,2}\.\d{4}")
@@ -167,7 +167,7 @@ REGIONS: dict[str, list[re.Pattern]] = {
     "Volyn": [_rx(r"Волин|Волинськ"), re.compile(r"\bЛуцьк\w*")],
     "Dnipropetrovsk": [_rx(r"Дніпропетровськ|Дніпропетровщин"), re.compile(r"\bДніпр(?:о|і|а|у|ом)\b(?!\s+(?:річк|водосх))"),
                        re.compile(r"\bКривий Ріг|\bКриворіж\w*|\bКривого Рогу|\bНікопол\w*|\bПавлоград\w*|\bКам'янськ\w*|\bСамар\b")],
-    "Donetsk": [_rx(r"Донеччин|Донецьк|Донеччині"), re.compile(r"\bКраматорськ\w*|\bСлов'янськ\w*|\bПокровськ\w*")],
+    "Donetsk": [_rx(r"Донеччин|Донецьк|Донеччині"), re.compile(r"\bКраматорськ\w*|\bСлов'янськ\w*|\bПокровськ\w*\b(?!\s+(?:(?:сільськ|селищн)\w*\s+)?громад)")],
     "Zhytomyr": [_rx(r"Житомирщин|Житомирськ|Житомир")],
     "Zakarpattia": [_rx(r"Закарпат|Ужгород")],
     "Zaporizhzhia": [_rx(r"Запоріжж|Запорізьк|Запоріжжя"), re.compile(r"\bЕнергодар\w*")],
@@ -196,9 +196,13 @@ REGIONS: dict[str, list[re.Pattern]] = {
 # ---- numbers ----------------------------------------------------------------------------------------
 NUM = r"(?:\d{1,3}(?: \d{3})+|\d+)(?:[.,]\d+)?"
 MULT = r"(?:тисяч\w*|тис\.?|млн\.?|мільйон\w*)"
-CONS_NOUN = (r"(?:споживач\w*|абонент\w*|родин\w*|сім'ї\w*|сімей|домогосподар\w+|осел\w*|домівк\w*|будинк\w+|помешкан\w+|"
-             r"мешканц\w+|клієнт\w+)")
+CONS_NOUN = (r"(?:споживач\w*|абонент\w*|родин\w*|сім'ї\w*|сімей|домогосподар\w+|осел\w*|домівк\w*|домівок|будинк\w+|помешкан\w+|"
+             r"мешканц\w+|клієнт\w+|киян|одеситів|харків['’]ян|дніпрян|запорожц\w+|сумчан\w*)")
 CONS_RE = re.compile(rf"(?P<num>{NUM})(?:\s*(?P<mult>{MULT}))?(?:\s+(?!{CONS_NOUN}|черг)[^\W\d_]+){{0,2}}?\s+(?P<noun>{CONS_NOUN})", I)
+CONS_ELLIPSIS = re.compile(rf"[^.\n]{{0,40}}?\s(?:та|і|й)\s+(?:понад\s+|більш\s+ніж\s+|майже\s+|близько\s+)?(?P<num>{NUM})\s*(?P<mult>{MULT})\s+(?:у|в|на)\b", I)
+HEAT_OUT = _rx(r"без\s+(?:тепла|води|газу|опалення|теплопостачання|водопостачання|газопостачання)")
+ELECTRIC = _rx(r"світл|електр|енергопостач|живлен")
+HYPOTHETICAL = _rx(r"(?:можуть|може|загроз\w+|якщо|ризик\w*)\s+(?:[^\W\d_]+\s+){0,3}$")
 SETTLE_RE = re.compile(rf"(?P<num>{NUM})(?:\s*(?P<mult>{MULT}))?\s+населен\w+\s+пункт\w*", I)
 OUT_CUE = _rx(r"знеструм\w*|без\s+розподілу|без\s+(?:світла|електро\w*|енергопостач\w*|живлення|тепла)|відключен\w*|вимкнен\w*|"
               r"залишаються|залишається|залишилис\w*|залишилос\w*|позбавлен\w*|залишаються\s+без")
@@ -245,27 +249,33 @@ SAME_LEVEL = _rx(r"(?:на\s+тому\s+(?:ж|самому)\s+рівні|так�
 SCHED_TERM = re.compile(
     r"графік\w*\s+(?:погодинн\w+\s+)?(?:відключен|знеструмлен|обмеж|аварійн|споживання)\w*|"
     r"графік\w*\s+(?:ГПВ|ГОП|ГАВ)|погодинн\w+\s+(?:графік|відключен|обмеж)\w*|\bГПВ\b|\bГОП\b|\bГАВ\b|"
-    r"заходи?\s+(?:примусового\s+)?(?:обмеження|зниження)|обмежен\w*\s+(?:споживання|потужності|електропостачання|енергоспоживання|енергопостачання)|"
+    r"заходи?\s+(?:примусового\s+)?(?:обмеження|зниження)|обмежен\w*\s+(?:споживання|потужності|електропостачання|енергоспоживання|енергопостачання|енергоживлення|електроживлення)|"
     r"відключен\w+\s+за\s+графіком|ліміт\w*\s+споживання|черг\w+\s+(?:аварійн\w+\s+)?(?:відключен|обмежен)\w*|планов\w+\s+(?:погодинн\w+\s+)?відключен\w*|"
     r"відключен\w+\s+на\s+(?:завтра|\d{1,2}\s+[а-яіїє]+)|графік\w*\s+відключен\w*\s+на|"
     r"(?:споживання|потужність)\s+(?:\w+\s+){0,2}буде\s+обмежуват\w+|обмежуватимуть\w*|"
     r"погодинн\w+\s+графіки|обсяг\w*\s+(?:для\s+)?обмеження|стабілізаційн\w+\s+(?:графік|відключен)\w*|"
-    r"графік\w*\s+стабілізаційн\w+", I)
+    r"графік\w*\s+стабілізаційн\w+|планов\w+\s+(?:погодинн\w+\s+)?вимкнен\w*|"
+    r"(?:діє|діють)\s+(?:\w+\s+){0,2}черг(?:а|и|у)\b|"
+    r"(?:повертає\w*|поверну\w*)\s+до\s+(?:погодинн\w+\s+)?графік\w*|"
+    r"знеструмлюват\w+\s+(?:\w+\s+){0,2}черг\w*|"
+    r"оновлен\w+\s+графік\w*\b(?!\s+(?:роботи|прийому|візит|зустріч|занять|уроків|руху))", I)
 SCHED_ABBR = re.compile(r"\bГПВ\b|\bГОП\b|\bГАВ\b")
 META_SCHED = _rx(r"адресн\w+\s+повідомленн|формат|інформуван|чат-бот|застосунк|персональн\w+\s+кабінет|поширен\w+\s+запитання|часті\s+питання")
 PARTIAL_CANCEL = _rx(r"скасован\w*\s+(?:одну|дві|кілька|частину|\d+)\s+(?:\w+\s+){0,2}черг")
 APPLY = _rx(r"змінен\w+|продовжен\w+|\bдіє\b|діють|діят\w*|діяв\w*|застосову\w*|застосова\w*|застосуван\w*|застосує\w*|введен\w*|вводят\w*|вводить\w*|"
             r"вводиться|запровадж\w*|\bбудуть\b|триває|продовжу\w*|оновлен\w*|змін[иаі]\w*|збільшен\w*|зменшен\w*|"
             r"скороч\w*|на\s+(?:завтра|\d{1,2}\s+[а-яіїє]+)|\bз\s+\d{1,2}[:.]\d{2}|протягом\s+дня|до\s+\d{1,2}[:.]\d{2}|"
-            r"вимушено|вимушен\w+")
+            r"вимушено|вимушен\w+|зсун\w+|повертає\w*|повинн\w+")
 EMERG = re.compile(
-    r"(?:аварійн\w+|екстрен\w+)\s+(?:графік\w*\s+)?(?:відключен\w*|знеструмлен\w*|обмеження|графіки)|аварійн\w+\s+відключ|"
+    r"(?:аварійн\w+|екстрен\w+)\s+(?:графік\w*\s+)?(?:відключен\w*|вимкнен\w*|знеструмлен\w*|обмеження|графіки)|аварійн\w+\s+відключ|аварійн(?:і|их|ого|ому|ими)\s+вимкн|"
     r"графік\w+\s+аварійн\w+|\bГАВ\b|вимушен\w+\s+знеструмлен\w+\s+поза\s+графіками|аварійн\w+\s+обмежен\w+\s+споживан", I)
 EMERG_EQUIP = _rx(r"^[^.\n]{0,25}?(?:ПЛ\b|лінії|лінія|ліній|блок|енергоблок|трансформатор|автотрансформатор|обладнан|АЕС|"
                   r"підстанц|ТЕС|ГЕС|генератор)")
 NEG = re.compile(
     r"\bне\s+(?:\w+\s+){0,3}?(?:застосову\w*|застосов\w*|прогнозу\w*|плану\w*|діят\w*|\bдіє\b|діють|вводит\w*|вводил\w*|"
-    r"запроваджу\w*|надава\w*|надав\w*|надходил\w*|доводил\w*|доводя\w*|відбува\w*|потреб\w*|передбача\w*|планується|застосуєть\w*)|"
+    r"запроваджу\w*|надава\w*|надав\w*|надходил\w*|доводил\w*|доводя\w*|відбува\w*|потреб\w*|передбача\w*|планується|застосуєть\w*|анонсу\w*)|"
+    r"(?:застосову\w*|застосов\w*|діят\w*|діє|діють|вводит\w*)\s+не\s+буд(?:е|уть)\b|"
+    r"\bне\s+буд(?:е|уть)\s+(?:\w+\s+){0,2}?(?:застосову\w*|застосов\w*|діят\w*|вводит\w*|запроваджу\w*)|"
     r"скасов\w+|скасуван\w+|зняті|знято|знят\w+|\bвідсутн(?:і|ій|є|я|ні)\b|жодн\w+|було\s+необхідності|без\s+(?:відключен|обмежен)|"
     r"(?:не\s+має|немає|не\s+мають)\s+(?:\w+\s+){0,3}?(?:підстав|потреби|необхідності)|не\s+йдеться", I)
 FUTURE_CANCEL = _rx(r"(?:буд\w+|може\w*|можуть\s+бути)\s+(?:\w+\s+)?скасован\w+")
@@ -276,7 +286,21 @@ HEDGE_MASK = _rx(r"всі\s+можливі|усі\s+можливі|все\s+мо
 LIFT_FWD = re.compile(
     r"(?:відключен\w*|заходи?\s+обмеження|обмеження|графік\w*|ГПВ|ГОП|ГАВ|знеструмлен\w+)[^.\n!?]{0,70}?"
     r"(?:\bне\s+(?:\w+\s+){0,3}?(?:застосову\w*|застосов\w*|прогнозу\w*|плану\w*|діят\w*|\bдіє\b|діють|вводит\w*|вводил\w*|"
-    r"запроваджу\w*|відбувал\w*|доводил\w*|надавал\w*|надав\w*|надходил\w*|застосуєть\w*)|скасован\w*|скасовано|знято|зняті|\bвідсутн(?:і|ій|є|я|ні)\b)", I)
+    r"запроваджу\w*|відбувал\w*|доводил\w*|надавал\w*|надав\w*|надходил\w*|застосуєть\w*)|скасован\w*|скасовано|знято|зняті|\bвідсутн(?:і|ій|є|я|ні)\b"
+    r"|(?:застосову\w*|застосов\w*|діят\w*|вводит\w*)\s+не\s+буд(?:е|уть)\b"
+    r"|\bне\s+буд(?:е|уть)\s+(?:\w+\s+){0,2}?(?:застосову\w*|застосов\w*|діят\w*|вводит\w*|запроваджу\w*))", I)
+# exemption ("restrictions will not be applied to industrial consumers that ...") and non-grid cancellations are not a lifting
+LIFT_EXEMPT = _rx(r"^\s+(?:до|для|щодо|стосовно)\s+(?:[^\W\d_]+\s+){0,2}?(?:промисл|комерц|підприємств|споживач|заклад|об'єкт|категорі|бізнес|домогосп|виробник)")
+LIFT_NONGRID = _rx(r"водоканал|за\s+борг|заборгован|боржник|несплат|\bКП\b")
+# explainer / FAQ posts talk about the regimes in general; "inform about planned works and emergency outages" is a service description
+DATE_ANCHOR = _rx(r"\d{1,2}\s+(?:січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)|зранку|вранці")
+OUTAGE_CTX = _rx(r"відключ|знеструм|вимкнен|ГПВ|електропостач|електроенерг|світл")
+FAQ_LINE = re.compile(r"\?\s*$|^\W*❓", re.M)
+INFO_BEFORE = _rx(r"(?:інформаці\w+|дізнат\w+|дізнавайтес\w*|отримув\w+|сповіщен\w+|повідомлен\w+|переглян\w+)\s+(?:[^\W\d_]+\s+){0,4}?(?:про|щодо)\s+(?:[^\W\d_]+\s+){0,4}$|розділ\w*\s+[^.\n]{0,90}$|(?:попередження|запобігання|уникнення)\s+$"
+              r"|(?:призводить|призводять|створює|створюють|заявк\w+)\s+(?:[^\W\d_]+\s+){0,5}$")
+PURPOSE = _rx(r"(?:з\s+метою|для|щоб|аби)\s+(?:уникнення|запобігання|уникнути|запобігти)[^,.;]*")
+RETURN_TO_SCHED = _rx(r"(?:повертає\w*|поверну\w*)\s+до\s+(?:погодинн\w+\s+)?графік")
+REINTRO = _rx(r"введен\w+|запроваджен\w+|застосован\w+|ввімкнен\w+")
 LIFT_NOBASIS = _rx(r"(?:не\s+має|немає|не\s+мають)\s+(?:\w+\s+){0,3}?(?:підстав|потреби|необхідності)[^.\n]{0,60}?(?:графік|відключ|обмеж)")
 LIFT_REV = re.compile(r"(?<!до\s)(?<!після\s)(?<!щодо\s)(?<!прискорити\s)(?<!наблизити\s)(?:скасуван\w+|скасовано|скасовані|зняття|зняти|скасували|скасуєть\w*)\s+(?:\w+\s+){0,3}"
                r"(?:графік\w*|відключен\w*|обмежен\w*|ГПВ|аварійн\w+)|жодних\s+відключен|відключен\w+\s+не\s+буде|"
@@ -296,7 +320,7 @@ QUEUE_NUM = re.compile(
 
 # ---- restoration ----------------------------------------------------------------------------------
 _R_OBJ = (r"(?:світл\w*|електропостач\w*|енергопостач\w*|електроенерг\w*|живлен\w*|споживач\w*|абонент\w*|родин\w*|"
-          r"осел\w*|домівк\w*|оселях|будинк\w+|населен\w+\s+пункт\w*|мешканц\w+)")
+          r"осел\w*|домівк\w*|оселях|будинк\w+|населен\w+\s+пункт\w*|мешканц\w+|електрик[аиіу]\b)")
 _R_VERB = (r"(?:повернув\b|повернул(?:и|а|о|ися)\b|повернут(?:о|а|і|е)\b|повернен(?:о|і|а|е)\b|відновил\w*|відновлен(?:о|а|е|і|ий|ого|у)\b|"
            r"заживил\w*|заживлен(?:о|і|а|е)\b|\bподал(?:и|а|о)\b|\bподан(?:о|а|і|е)\b|з'явил\w*)")
 RESTORED_RES = [
@@ -304,14 +328,24 @@ RESTORED_RES = [
     re.compile(rf"{_R_OBJ}\s+(?:[^\W\d_]+\s+){{0,3}}?{_R_VERB}", I),
     re.compile(r"(?:вс[іі]|усі|всіх|усіх)\b[^.\n]{0,40}?(?:зі\s+світлом|заживлен\w*|заживил\w*)", I),
     re.compile(r"(?:знову|вже)\s+(?:зі\s+світлом|з\s+електропостачанням|з\s+енергопостачанням)", I),
-    re.compile(r"вдал\w+ся?\s+(?:\w+\s+){0,2}?(?:заживити|повернути\s+(?:світло|електро)|відновити\s+(?:електро|енерго))", I),
+    re.compile(r"вдал\w+ся?\s+(?:\w+\s+){0,2}?(?:заживити|(?:повернути|подати)\s+(?:світло|електро)|відновити\s+(?:електро|енерго|живлення))", I),
+    re.compile(r"знеструмлен\w+\s+(?:[^\W\d_]+,?\s+){0,5}?(?:яке|які|що)\s+(?:[^\W\d_]+\s+){0,2}?(?:відновил\w+|ліквідувал\w+)", I),
     re.compile(r"знеструмлених\s+(?:споживачів|абонентів|населених\s+пунктів)\s+(?:\w+\s+)?(?:немає|не\s+залишилось)", I),
 ]
+# restoration of the critical objects / key substations only: partial by definition
+RESTORED_PARTIAL_RES = [
+    re.compile(rf"{_R_VERB}\s+(?:[^\W\d_]+\s+){{0,2}}?напруг\w*", I),
+    re.compile(rf"{_R_VERB}\s+(?:[^\W\d_]+\s+){{0,3}}?(?:ключов\w+|критичн\w+|соціальн\w+)\s+(?:[^\W\d_]+\s+)?(?:об'єкт|інфраструктур|заклад)\w*", I),
+    re.compile(r"(?<!які\s)(?<!що\s)(?<!яких\s)(?<!від\s)(?:заживлен(?:о|і|а|е)\b|заживил\w+)\s+(?:[^\W\d_]+\s+){0,3}?(?:інфраструктур|об'єкт|котельн|водогон|лікарн)\w*", I),
+    re.compile(r"вдал\w+ся?\s+(?:[^\W\d_]+\s+){0,2}?перепідключ\w+", I),
+]
+CRIT_OBJ = _rx(r"(?:критичн\w+|ключов\w+|соціальн\w+)\s+(?:\w+\s+)?(?:об'єкт|інфраструктур|заклад)")
+NOT_ELECTRIC = _rx(r"тепл\w*|опален\w*|опалюв\w*|газ\w*|вод[аиіу]\b|водо\w+")
 RESTORE_NEG = re.compile(r"(?:\bне|ще\s+не|поки\s+що\s+не|не\s+вдалося|потребу\w+|щоб|\bдо|для|очікуєть\w*)\s+(?:\w+\s+){0,2}$", I)
 RESTORE_ALL = _rx(r"(?:вс[іі]|усі|всіх|усіх)\s+(?:\w+\s+){0,2}?(?:споживач|абонент|родин|осел|домівк|населен)|повністю|кожн|"
-                  r"вс[іі]\s+зі\s+світлом|знеструмлених[^.]{0,30}немає")
+                  r"вс[іі]\s+зі\s+світлом|знеструмлених[^.]{0,30}немає|вс[іі]\s+вони\s+(?:\w+\s+){0,2}?(?:заживлен|відновлен|повернут)")
 RESTORE_PARTIAL = _rx(r"частков|частин|майже|більш(?:у|ість)|окрем|поступов|деяк|не\s+всіх|не\s+всім|залишаю\w+|локальн|"
-                      r"основн\w+\s+робот|точков|поетапн|етап")
+                      r"основн\w+\s+робот|точков|поетапн|етап|за\s+графік\w*|за\s+чергам\w*|\d+\s+населен\w+\s+пункт|більшост\w+|однак|проте|нові\s+відключен\w+")
 REPAIR_RES = [
     re.compile(r"відновлен(?:а|о|і|е)\s+(?:\w+\s+){0,3}?(?:обладнанн|лін|підстанц|енергоблок|об'єкт|енергооб)", I),
     re.compile(r"закінчен(?:і|о|а)\s+(?:\w+\s+){0,3}?робот|відремонтува\w+\s+\d", I),
@@ -544,7 +578,16 @@ def extract_post(text: str) -> dict:
                 continue
             if re.search(r"(?:тис\.?|тисяч\w*|млн)\s+(?:грн|гривень|євро|тонн|кВт|МВт)", t[m.start():m.end() + 12], I):
                 continue
-            (cons_rest if kind == "restore" else cons_weather if seg_has_weather else cons_out).append((val, m))
+            pre = t[s:m.start()]
+            if kind == "out" and (HEAT_OUT.search(pre) and not ELECTRIC.search(pre)):
+                continue                    # "без тепла залишилися 6 лікарень": heat / water / gas, not electricity
+            if kind == "out" and HYPOTHETICAL.search(pre[-40:]):
+                continue                    # "взимку можуть залишитися без світла 500 будинків"
+            target = cons_rest if kind == "restore" else cons_weather if seg_has_weather else cons_out
+            target.append((val, m))
+            c = CONS_ELLIPSIS.match(t, m.end(), e)      # "3 тис абонентів у Нікополі та більш ніж 6,4 тис у районі"
+            if c:
+                target.append((parse_number(c.group("num")) * _scale(c.group("mult")), c))
     if cons_out:
         val, m = max(cons_out, key=lambda x: x[0])
         out["consumers_without_power"] = val
@@ -580,14 +623,32 @@ def extract_post(text: str) -> dict:
     announced_segs: list[tuple[int, int]] = []
     kinds: set[str] = set()
     lifted_hits: list[tuple[int, int]] = []
+    faq_post = len(FAQ_LINE.findall(t)) >= 3
+    returning_any = False
     for idx, (s, e) in enumerate(segs):
         seg = t[s:e]
+        if seg.rstrip().endswith("?") or (faq_post and not (NOW_DAY.search(seg) or TIME_RANGE.search(seg) or DATE_ANCHOR.search(seg))):
+            continue
+        if PURPOSE.search(seg):
+            # "з метою уникнення застосування аварійних відключень, діє графік": the purpose clause is not a statement
+            seg = PURPOSE.sub(lambda m: " " * len(m.group()), seg)
+        if "(" in seg:
+            # "ГАВ введено повторно (о 14:18 були скасовані ГАВ для 6-10 черг)": the parenthesis is a side note on an earlier state
+            outer = re.sub(r"\([^)]*\)", lambda m: " " * len(m.group()), seg)
+            if outer != seg and REINTRO.search(outer) and _has_neg(seg) and not _has_neg(outer):
+                seg = outer
         term = SCHED_TERM.search(seg)
+        if term and term.group().lower().startswith("оновлен") and not OUTAGE_CTX.search(t[s:e + 200]):
+            term = None                     # "оновлений графік вакцинації"
         lift = None if (PARTIAL_CANCEL.search(seg) or COUNTERFACTUAL.search(seg)) else (
             LIFT_FWD.search(seg) or LIFT_REV.search(seg) or LIFT_NOBASIS.search(seg))
+        if lift and (LIFT_EXEMPT.match(seg[lift.end():]) or LIFT_NONGRID.search(seg)):
+            lift = None
         if lift:
             lifted_hits.append((s + lift.start(), s + lift.end()))
         em = EMERG.search(seg)
+        if em and INFO_BEFORE.search(seg[max(0, em.start() - 120):em.start()]):
+            em = None
         past = bool(PAST_DAY.search(seg)) and not NOW_DAY.search(seg)
         if em and not EMERG_EQUIP.match(seg[em.end():]) and past and not _has_neg(seg):
             out["emergency_past"] = True
@@ -600,7 +661,9 @@ def extract_post(text: str) -> dict:
                 out["restrictions_possible"] = True
         if not term or META_SCHED.search(seg):
             continue
-        if (lift or _has_neg(seg)) and not PARTIAL_CANCEL.search(seg):
+        returning = bool(RETURN_TO_SCHED.search(seg))
+        returning_any = returning_any or returning        # "повертаємось до графіків, екстрені відключення скасовано"
+        if (lift or _has_neg(seg)) and not PARTIAL_CANCEL.search(seg) and not returning:
             continue
         if past:
             out["schedules_past"] = True
@@ -611,6 +674,9 @@ def extract_post(text: str) -> dict:
         if em and term.start() >= em.start() and term.end() <= em.end() and not re.search(r"графік|ГАВ|черг", term.group(), I):
             continue          # "аварійні обмеження споживання": emergency outages, not a schedule
         applies = bool(APPLY.search(seg))
+        if not applies and idx and t[slice(*segs[idx - 1])].rstrip().endswith(":"):
+            # list item under "31 грудня на Хмельниччині діятимуть:" / "У Бучанському районі введено:"
+            applies = bool(APPLY.search(t[slice(*segs[idx - 1])]))
         if not applies and len(seg) < 90:       # header line ("ГРАФІКИ ПОГОДИННИХ ВІДКЛЮЧЕНЬ") followed by hours/queues
             nxt = t[e:e + 300]
             applies = bool(TIME_RANGE.search(nxt) or QUEUE_NUM.search(nxt))
@@ -620,11 +686,11 @@ def extract_post(text: str) -> dict:
             kinds.update(_sched_kinds(seg))
     out["outage_schedules_announced"] = bool(announced_segs)
     out["schedule_kinds"] = sorted(kinds - {"other"} if kinds - {"other"} else kinds)
-    if lifted_hits and not announced_segs and not out["emergency_outages"]:
+    if lifted_hits and (not announced_segs or returning_any) and not out["emergency_outages"]:
         out["schedules_lifted"] = True
         s, e = lifted_hits[0]
         add("schedules_lifted", s, e, True)
-    elif lifted_hits and announced_segs:
+    elif lifted_hits and announced_segs and not returning_any:
         out["schedules_lifted"] = False     # partial: restrictions for some consumers remain
     if announced_segs:
         hours, qmin, qmax = [], [], []
@@ -707,8 +773,13 @@ def extract_post(text: str) -> dict:
     rest_hits = []
     for s, e in segs:
         seg = t[s:e]
-        for rx in RESTORED_RES:
+        for rx in RESTORED_RES + RESTORED_PARTIAL_RES:
+            forced_partial = rx in RESTORED_PARTIAL_RES
             for m in rx.finditer(seg):
+                if _AES_FEED.search(seg) or re.search(r"надійн\w+\s+живлення", seg, I):
+                    continue                    # "надійність живлення ЗАЕС відновлено": a transmission line, not consumers
+                if NOT_ELECTRIC.search(m.group()) and not ELECTRIC.search(m.group()):
+                    continue                    # "подано тепло до будинків", "відновлено газопостачання": not electricity
                 if RESTORE_NEG.search(seg[max(0, m.start() - 30):m.start()]) or re.search(r"\bне\s+\w*$", seg[:m.start()][-14:], I):
                     continue
                 if "вдал" in m.group().lower() and "вдал" not in rx.pattern:
@@ -720,7 +791,7 @@ def extract_post(text: str) -> dict:
                 partial_cue = bool(RESTORE_PARTIAL.search(seg))
                 nxt = t[e:e + 120] if seg.rstrip().endswith(":") else ""       # list of counts follows the colon
                 full = (not partial_cue) and (bool(RESTORE_ALL.search(seg)) or not (CONS_RE.search(seg) or CONS_RE.search(nxt)))
-                kind = "full" if full else "partial"
+                kind = "full" if full and not forced_partial and not CRIT_OBJ.search(seg) else "partial"
                 rest_hits.append((s + m.start(), s + m.end(), kind))
     if rest_hits:
         out["restoration_power"] = "full" if any(k == "full" for _, _, k in rest_hits) else "partial"
@@ -1144,14 +1215,14 @@ def episode_as_of(posts: pd.DataFrame, strike_at, as_of, prm: EpisodeParams | No
 def run_extract(data_root: Path, channels: list[str] | None = None, exclude: list[str] | None = None,
                 prm: EpisodeParams | None = None, strikes_path: Path | None = None,
                 channel_oblast: dict[str, str] | None = None,
-                window_info: dict[str, dict] | None = None) -> dict[str, pd.DataFrame]:
+                window_info: dict[str, dict] | None = None, proc_dir: Path | None = None) -> dict[str, pd.DataFrame]:
     """raw/telegram/*.parquet -> processed/telegram_{posts,daily,episodes}.parquet and, when `channel_oblast`
     (channel -> oblast code from config/sources.yaml) is given, telegram_region_{posts,episodes}.parquet."""
     prm = prm or EpisodeParams()
     raw = load_raw(data_root / "raw" / "telegram", channels, exclude)
     log.info("extracting %d posts from %s", len(raw), ", ".join(sorted(raw["channel"].unique())))
     posts = add_derived(extract_frame(raw))
-    proc = data_root / "processed"
+    proc = proc_dir or (data_root / "processed")      # scenario-scoped output; raw/ is shared
     proc.mkdir(parents=True, exist_ok=True)
     posts.to_parquet(proc / "telegram_posts.parquet")
     daily = daily_table(posts)

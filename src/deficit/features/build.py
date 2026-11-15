@@ -2,7 +2,7 @@
 
 Row t describes the target hour t, and every feature is built only from information
 available at the *issue time* t - horizon_hours (except calendar features, which are known,
-and weather, which stands in for a weather forecast - see README §Rules).
+and weather, which stands in for a weather forecast - see README §6).
 """
 from __future__ import annotations
 

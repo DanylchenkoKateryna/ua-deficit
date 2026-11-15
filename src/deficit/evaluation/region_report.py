@@ -84,7 +84,7 @@ def variant_section(cfg, r: dict) -> list[str]:
          "Evaluated episodes: " + ", ".join(
              f"{s}: {int((ev['split'] == s).sum())} episodes ({int(((ev['split'] == s) & ev['observed']).sum())} observed) in "
              f"{ev.loc[ev['split'] == s, 'idx'].nunique()} strikes" for s in ("validation", "test")) +
-         f". (Observed cohort episodes up to 2023-12-31, the README validation period: {len(early)}.)", "",
+         f". (Observed cohort episodes up to 2023-12-31, the default validation period of config.yaml: {len(early)}.)", "",
          "Chosen on validation: " + ", ".join(f"{k} = `{x}`" for k, x in chosen.items()) + ".", ""]
     show = list(dict.fromkeys(["global_median", "oblast_median", "geo_mean", "km_global", "const_30d"] + [chosen[k] for k in ("ridge", "aft", "overall") if k in chosen]))
     for split in ("validation", "test"):
@@ -146,7 +146,7 @@ def build_text(cfg, eps, res, comp, facts) -> str:
           f"Issue time = end of the strike day; features from posts published before it, plus strike strength and the temperature of the 24 h "
           f"before it. Walk-forward over strikes: strike i is forecast from the episodes of strikes before i; first forecast once "
           f"{tc.region_min_obs} observed episodes are known. **Split by strike date: validation up to {tc.region_validation_end}, test after** "
-          f"(the README's 2022-23 / 2024-25 split would leave too few observed episodes in validation, counts below; the split was fixed "
+          f"(the default 2022-23 / 2024-25 split of config.yaml would leave too few observed episodes in validation, counts below; the split was fixed "
           f"before any model result was seen). Designs (model, feature set, penalty) are chosen on validation only; test strikes were "
           f"never used for a choice. Baselines: global median and oblast median of past observed durations; `km_global` (Kaplan-Meier "
           f"median, uses the censored episodes) and `const_30d` (always 30 days) are references that show the bias of the metrics.", ""]
@@ -171,7 +171,6 @@ def build_text(cfg, eps, res, comp, facts) -> str:
 
 
 def write_region_report(cfg, eps, res, comp, path: Path) -> None:
-    root = cfg._abs(cfg.paths.data_dir)
-    fp = root / "processed" / "telegram_region_posts.parquet"
+    fp = cfg.telegram_processed_dir / "telegram_region_posts.parquet"
     facts = pd.read_parquet(fp) if fp.exists() else None
     Path(path).write_text(build_text(cfg, eps, res, comp, facts), encoding="utf-8")

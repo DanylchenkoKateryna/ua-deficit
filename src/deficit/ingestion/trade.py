@@ -61,7 +61,7 @@ def fetch_trade(cfg: Config) -> None:
     path = cfg.raw_dir / cfg.trade.file
     if not path.exists():
         raise FileNotFoundError(f"{path} not found - download the hourly imports/exports CSV from Energy Map "
-                                "(README §Data sources) and save it there")
+                                "(README §7) and save it there")
     raw = pd.read_csv(path)
     missing = REQUIRED - set(raw.columns)
     if missing:

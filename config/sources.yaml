@@ -23,9 +23,9 @@ telegram:
   - {name: dtek_odesa,          oblast: Odesa,        enabled: true, purpose: "DTEK Odesa networks: outages and restoration"}
   - {name: dnipropetrovskaoda,  oblast: Dnipropetrovsk, enabled: true, window_collected: true, continuous_from: "2024-11-01", purpose: "Dnipropetrovsk regional military administration (O. Ganzha): strikes, power restoration"}
   - {name: zoda_gov_ua,         oblast: Zaporizhzhia, enabled: true, window_collected: true, purpose: "Zaporizhzhia regional military administration (M. Semikin)"}
-  - {name: khersonskaoda,       oblast: Kherson,      enabled: true, purpose: "Kherson regional military administration"}
-  - {name: khmelnytskaoda,      oblast: Khmelnytskyi, enabled: true, purpose: "Khmelnytskyi regional military administration (S. Tyurin)"}
-  - {name: vinnytsiaoda,        oblast: Vinnytsia,    enabled: true, purpose: "Vinnytsia regional military administration"}
+  - {name: khersonskaoda,       oblast: Kherson,      enabled: true, window_collected: true, purpose: "Kherson regional military administration"}
+  - {name: khmelnytskaoda,      oblast: Khmelnytskyi, enabled: true, window_collected: true, purpose: "Khmelnytskyi regional military administration (S. Tyurin)"}
+  - {name: vinnytsiaoda,        oblast: Vinnytsia,    enabled: true, window_collected: true, purpose: "Vinnytsia regional military administration"}
   - {name: poltavskaoda,        oblast: Poltava,      enabled: true, window_collected: true, purpose: "Poltava regional military administration (news)"}
   # identity not read from the page title (the title was lost by a logging error; the page was fetched once): check the
   # posts in data/raw/telegram after collection and disable if they are not the regional administration / its head.
@@ -33,6 +33,16 @@ telegram:
   - {name: kharkivoda,          oblast: Kharkiv,      enabled: true, window_collected: true, purpose: "Kharkiv oblast military administration (unverified identity)"}
   - {name: synegubov,           oblast: Kharkiv,      enabled: true, purpose: "O. Synehubov, head of Kharkiv OVA (unverified identity)"}
   - {name: odeskaoda,           oblast: Odesa,        enabled: true, window_collected: true, purpose: "Odesa oblast military administration (unverified identity)"}
+  # ---- added 2026-10-31 (discovery, one fetch each; preview enabled, title read from the page). Window mode only.
+  - {name: chernigivskaoda,     oblast: Chernihiv,    enabled: true, window_collected: true, purpose: "Chernihiv regional military administration (V. Chaus; title 'Chernihiv ODA (OVA)')"}
+  - {name: zhytomyrskaoda,      oblast: Zhytomyr,     enabled: true, window_collected: true, purpose: "Zhytomyr OVA head V. Bunechko (title read from page; few posts)"}
+  - {name: volynskaoda,         oblast: Volyn,        enabled: true, window_collected: true, purpose: "Volyn regional military administration (R. Romaniuk)"}
+  - {name: ternopilskaoda,      oblast: Ternopil,     enabled: true, window_collected: true, purpose: "Ternopil regional military administration"}
+  - {name: chernivetskaoda,     oblast: Chernivtsi,   enabled: true, window_collected: true, purpose: "Chernivtsi OVA (R. Osypenko)"}
+  - {name: zakarpatskaoda,      oblast: Zakarpattia,  enabled: true, window_collected: true, purpose: "Zakarpattia OVA head V. Mykyta (few posts)"}
+  - {name: kirovohradskaoda,    oblast: Kirovohrad,   enabled: true, window_collected: true, purpose: "Kirovohrad ODA/OVA (official channel)"}
+  - {name: kirovogradskaoda,    oblast: Kirovohrad,   enabled: false, window_collected: true, purpose: "Kirovohrad OVA head A. Raikovych (possible overlap with kirovohradskaoda)"}
+  - {name: donetskaoda,         oblast: Donetsk,      enabled: true, window_collected: true, purpose: "Donetsk regional administration"}
   # reachable but not enabled
   - {name: cherkaskaoda,        oblast: Cherkasy,     enabled: false, purpose: "Cherkasy OVA head: mostly air-raid alert feed"}
   - {name: mykolaivskaoda,      oblast: Mykolaiv,     enabled: false, purpose: "2 posts, channel moved ('Channel created')"}
@@ -51,6 +61,6 @@ telegram:
 #   zakarpattyaoblenergo, zakarpattiaoblenergo, zakarpatska_oda, chernivtsioblenergo, chernivtsiobl, chernivetska_oda,
 #   kirovohradoblenergo, kirovohradska_oda, khersonoblenergo, ksoda_ua, chernihivskaoda, chernihivoda, cherkasyoda.
 # Not reachable without login: MinEnergoUA (Ministry of Energy) - t.me/s/MinEnergoUA redirects to the channel page,
-#   i.e. the web preview is disabled; needs the Telegram API (user credentials). Guessed handles for Kyivoblenergo,
+#   i.e. the web preview is disabled. Guessed handles for Kyivoblenergo,
 #   Kharkivoblenergo, DTEK Odesa/Dnipro/Kyiv networks and the main Yasno channel exposed no preview either.
 rss: []   # none added: no energy RSS feed with usable history was verified

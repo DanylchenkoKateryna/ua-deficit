@@ -387,3 +387,52 @@ def test_merge_store_unions_window_strike():
     b = tp.to_frame([dict(row, views=2, window_strike="2026-01-02", matched_query="q")])
     m = tp.merge_store(a, b)
     assert len(m) == 1 and m.loc[0, "window_strike"] == "2026-01-01|2026-01-02" and m.loc[0, "matched_query"] == "q"
+
+
+def _sample_store(tmp_path, f):
+    s = [{"channel": "c", "post_id": i, "datetime": f.time_of(i), "text": "old", "views": 1, "has_media": False,
+          "forwarded_from": None, "reply_to": None, "url": f"https://t.me/c/{i}", "matched_query": "q"} for i in (10, 500, 2000, 3500, 3999)]
+    tp.save_store(tp.to_frame(s), tp.store_path(tmp_path, "c"))
+
+
+def test_uncovered_intervals():
+    t = lambda d: T0 + pd.Timedelta(days=d)
+    assert tp.uncovered(t(0), t(10), []) == [(t(0), t(10))]
+    assert tp.uncovered(t(0), t(10), [(t(-2), t(3)), (t(2), t(5)), (t(7), t(8))]) == [(t(5), t(7)), (t(8), t(10))]
+    assert tp.uncovered(t(0), t(10), [(t(-1), t(10))]) == []
+
+
+def test_gap_fill_skips_covered_and_fetches_only_the_rest(tmp_path):
+    f = FakeWindowFetcher()
+    _sample_store(tmp_path, f)
+    d = (T0 + pd.Timedelta(days=20)).strftime("%Y-%m-%d")
+    ts = lambda k: pd.Timestamp(d, tz="UTC") + pd.Timedelta(days=k)
+    tp.collect_channel_windows("c", [d], tmp_path, window_days=3, pre_days=1, fetcher=f)       # [d-1, d+4)
+    # fully covered (narrower) window: skipped, no request
+    f.calls.clear()
+    st = tp.collect_channel_windows("c", [d], tmp_path, window_days=2, pre_days=1, fetcher=f)
+    assert st["skipped"] == 1 and st["windows"] == 0 and f.calls == []
+    # wider window: only [d+4, d+7) is requested, the full window is logged
+    st = tp.collect_channel_windows("c", [d], tmp_path, window_days=6, pre_days=1, fetcher=f)
+    assert st["windows"] == 1 and st["skipped"] == 0
+    fresh = FakeWindowFetcher()
+    other = tmp_path / "fresh"
+    _sample_store(other, fresh)
+    st_full = tp.collect_channel_windows("c", [d], other, window_days=6, pre_days=1, fetcher=fresh)
+    assert 0 < st["requests"] < st_full["requests"]
+    new_calls = [c for c in f.calls if c[0] == "after"]
+    assert all(c[1] >= min(i for i in f.ids if f.time_of(i) >= ts(4)) - 2 * tp.PAGE for c in new_calls)    # nothing read from the covered part
+    df = tp.load_store(tp.store_path(tmp_path, "c"))
+    w = df[df["window_strike"].notna()]
+    truth = {i for i in f.ids if ts(-1) <= f.time_of(i) < ts(7)}
+    assert set(w["post_id"]) == truth and set(w["post_id"]) == set(tp.load_store(tp.store_path(other, "c")).query("window_strike == window_strike")["post_id"])
+    log = tp.load_windows_log(tmp_path)
+    assert list(log["window_start"]) == [ts(-1)] * 2 and sorted(log["window_end"]) == [ts(4), ts(7)]
+    # the plan counts only the uncovered part (here: nothing)
+    clk = tp.IdClock()
+    clk.add_frame(tp.load_store(tp.store_path(tmp_path, "c")))
+    m = tp.merge_windows(tp.strike_windows([d], 6, 1))
+    cov = tp.covered_intervals(log, "c")
+    e = tp.estimate_windows(clk, m, covered=cov)
+    assert e["requests"] == 0 and e["todo"] == 0 and e["requests_full"] > 0
+    assert tp.estimate_windows(clk, m)["requests"] == e["requests_full"]

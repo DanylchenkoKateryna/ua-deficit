@@ -1,0 +1,10 @@
+# Dev-only scenario: post-event depth / duration on the EXTENDED strike list (major strikes + derived strikes), train+validation only.
+#   docker compose run --rm deficit-offline events-dev --config config/net_import_extended.yaml
+# Same scenario folder as net_import (master.parquet, BOCPD, reports/net_import); `events` refuses to run with this file because
+# it would score the test period. See reports/net_import/post_event_extended_dev.md.
+extends: net_import.yaml
+
+post_event:
+  strike_list: data/external/attacks_extended.csv
+  min_event_gap_days: 7          # a derived strike within 7 days of a kept event is merged into it; major strikes are always kept
+  dev_gap_sensitivity: [3, 14]

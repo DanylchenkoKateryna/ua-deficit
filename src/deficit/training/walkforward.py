@@ -2,11 +2,11 @@
 
 Static   : fit once on the train period (2019-2021), predict everything after it.
 Adaptive : refit at scheduled times and whenever a trigger fires. Triggers:
-             * BOCPD alarm   - after a break at tau the model is trained on [tau - window, now)  (thesis §3.3);
+             * BOCPD alarm   - after a break at tau the model is trained on [tau - window, now);
              * known attack  - a strike from attacks.csv (xgb_attack), shorter recent window;
              * error drift   - CUSUM on the model's own daily MAE (xgb_drift), shorter recent window.
 
-Timing rules (see README §Rules):
+Timing rules (see README §6):
   * a model refitted at time T trains on target hours t < T (all observed by T);
   * it is used for forecasts issued at >= T, i.e. target hours t >= T + horizon;
   * a BOCPD alarm / an attack on day d is usable only from d + 1 00:00 UTC;

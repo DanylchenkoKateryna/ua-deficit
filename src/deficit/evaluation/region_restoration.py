@@ -20,6 +20,11 @@ Feature sets (all known at the issue time):
   strike         strike strength log1p(weapons_through), days since the previous strike, strikes in the last 30 days,
                  heating season, mean temperature of the 24 h before the issue time
   strike_oblast  strike + oblast dummies
+  strike_oblast_hist  strike_oblast + oblast history known at the issue time (see `add_history`): previous cohort episode of the
+                 oblast (label as known at the issue time, observed flag, missing flag), number of prior episodes, days since
+                 that strike, "restriction regime already in force before the strike day" (from posts only)
+  strike_oblast_early / strike_oblast_hist_early  strike_oblast (+ hist) + "early impact" of the oblast (see `early_features`): what its posts
+                 said within the first K hours (`telegram.region_early_hours`, 3 or 6, chosen on the dev CV only) of the strike day
   full           strike_oblast + severity in the oblast's posts of the strike day (max consumers without power, attack
                  reports, damaged object kinds, emergency outages, schedule posts, number of posts, oblasts hit nationwide) +
                  recent activity (impact posts in the 30 days before, days since the last impact post, regime already in force)
@@ -61,7 +66,12 @@ STRIKE_F = ["log_through", "gap_prev", "n_strikes_30", "heating", "temp_24h"]
 SEVERITY_F = ["sev_log_consumers", "sev_attack_posts", "sev_object_kinds", "sev_emergency", "sev_schedule_posts", "sev_posts",
               "sev_oblasts_hit"]
 ACTIVITY_F = ["act_impact_posts_30d", "act_days_since_impact", "act_regime_in_force"]
-CONTINUOUS = set(STRIKE_F + SEVERITY_F + ACTIVITY_F)
+EARLY_F = ["early_log_consumers", "early_attack_posts", "early_impact_posts", "early_object_kinds", "early_emergency_schedule",
+           "early_any_impact", "early_first_impact_h", "early_own_channel"]
+EARLY_CONTINUOUS = ["early_log_consumers", "early_attack_posts", "early_impact_posts", "early_object_kinds", "early_first_impact_h"]
+EARLY_HOURS = 3.0
+HIST_F = ["hist_has_prev", "hist_prev_log_hours", "hist_prev_observed", "hist_n_prior", "hist_days_since_prev", "hist_under_restr"]
+CONTINUOUS = set(STRIKE_F + SEVERITY_F + ACTIVITY_F + ["hist_prev_log_hours", "hist_n_prior", "hist_days_since_prev"] + EARLY_CONTINUOUS)
 BASELINES = ["global_median", "oblast_median"]
 REFERENCES = BASELINES + ["geo_mean", "km_global", "const_30d"]
 
@@ -71,7 +81,8 @@ def dummies() -> list[str]:
 
 
 def feature_sets() -> dict[str, list[str]]:
-    return {"strike": STRIKE_F, "strike_oblast": STRIKE_F + dummies(), "full": STRIKE_F + SEVERITY_F + ACTIVITY_F + dummies(),
+    return {"strike": STRIKE_F, "strike_oblast": STRIKE_F + dummies(), "strike_oblast_hist": STRIKE_F + dummies() + HIST_F,
+            "strike_oblast_early": STRIKE_F + dummies() + EARLY_F, "strike_oblast_hist_early": STRIKE_F + dummies() + HIST_F + EARLY_F, "full": STRIKE_F + SEVERITY_F + ACTIVITY_F + dummies(),
             "full_no_oblast": STRIKE_F + SEVERITY_F + ACTIVITY_F}
 
 
@@ -125,11 +136,73 @@ def issue_features(f: pd.DataFrame, f_all: pd.DataFrame, strike_at, issue) -> di
             "act_regime_in_force": float(bool((pre3["schedules"].astype(bool) | pre3["emergency"].astype(bool)).any())) if len(pre3) else 0.0}
 
 
+def early_features(f: pd.DataFrame, strike_at, issue, hours: float, own_channel: bool) -> dict:
+    """Early impact of one oblast from its fact rows `f`: only posts in [start of the strike day, cut) with
+    cut = min(strike_at + hours, issue). Nothing at or after `cut` is read, so a late post cannot change the values.
+    (The strike hour in attacks.csv is a placeholder and real strikes happen at night, hence the window starts at the day start;
+    `hours` counts from `strike_at`. For a late strike of the extended list the cut is clipped at the issue time.)
+    Episodes already resolved before the cut are not in the cohort at all (the cohort needs 'unresolved at the issue time' and
+    cut <= issue), so the label of every cohort row starts after the cut. `early_first_impact_h`: hours from the day start to
+    the first impact post in the window (= window length if none; `early_any_impact` says so)."""
+    day = pd.Timestamp(strike_at).floor("D")
+    cut = min(pd.Timestamp(strike_at) + pd.Timedelta(hours=hours), pd.Timestamp(issue))
+    w = f[(f["datetime"] >= day) & (f["datetime"] < cut)]
+    imp = w[_impact_mask(w)] if len(w) else w
+    cons = pd.to_numeric(w["consumers_without_power"], errors="coerce")
+    kinds = {o for lst in w["damaged_objects"] for o in lst}
+    first = float((imp["datetime"].min() - day).total_seconds() / 3600) if len(imp) else float((cut - day).total_seconds() / 3600)
+    return {"early_log_consumers": float(np.log1p(cons.max())) if cons.notna().any() else 0.0,
+            "early_attack_posts": int(w["attack"].astype(bool).sum()), "early_impact_posts": int(len(imp)), "early_object_kinds": len(kinds),
+            "early_emergency_schedule": float((w["emergency"].astype(bool) | w["schedules"].astype(bool)).any()),
+            "early_any_impact": float(len(imp) > 0), "early_first_impact_h": first, "early_own_channel": float(bool(own_channel))}
+
+
+def add_history(out: pd.DataFrame, facts: pd.DataFrame) -> pd.DataFrame:
+    """Regional history features of every cohort row, using only what is known at its issue time.
+    Previous episode = the latest cohort episode of the same oblast with an EARLIER strike. Its duration is taken as known at
+    `issue - 1 us` (`labels_as_of`): the observed duration if its resolution post is older than that, otherwise the elapsed time
+    so far (flag hist_prev_observed = 0); the final label is never read. Missing (no previous episode): NaN + hist_has_prev = 0,
+    filled later with a training-data median (`_Prep`). `hist_under_restr`: the oblast's last schedule/emergency post before the
+    strike day is newer than its last lifting post (posts older than the strike day only)."""
+    out = out.sort_values(["idx", "oblast"]).reset_index(drop=True)
+    cols = {c: np.full(len(out), np.nan) for c in HIST_F}
+    by_ob = {ob: g.sort_values("datetime") for ob, g in facts.groupby("oblast")} if len(facts) else {}
+    for ob, g in out.groupby("oblast"):
+        pos = list(g.index)
+        fo = by_ob.get(ob)
+        for k, i in enumerate(pos):
+            r = out.loc[i]
+            day = r["strike_at"].floor("D")
+            cols["hist_n_prior"][i] = k
+            cols["hist_has_prev"][i] = float(k > 0)
+            if k:
+                q = out.loc[pos[k - 1]]
+                as_of = r["issue"] - pd.Timedelta(microseconds=1)
+                obs = pd.notna(q["res_at"]) and q["res_at"] <= as_of
+                h = q["res_hours"] if obs else min((as_of - q["strike_at"]).total_seconds() / 3600, q["end_hours"])
+                cols["hist_prev_log_hours"][i] = float(np.log(max(h, MIN_H)))
+                cols["hist_prev_observed"][i] = float(obs)
+                cols["hist_days_since_prev"][i] = float(min((r["strike_at"] - q["strike_at"]).total_seconds() / 86400, 60.0))
+            else:
+                cols["hist_prev_observed"][i] = 0.0
+            under = 0.0
+            if fo is not None:
+                old = fo[fo["datetime"] < day]
+                restr = old.loc[old["schedules"].astype(bool) | old["emergency"].astype(bool), "datetime"]
+                lift = old.loc[old["lifted"].astype(bool), "datetime"]
+                if len(restr):
+                    under = float(len(lift) == 0 or lift.max() < restr.max())
+            cols["hist_under_restr"][i] = under
+    for c, v in cols.items():
+        out[c] = v
+    return out
+
+
 VARIANTS = ("next_strike", "30d")
 
 
 def build_table(eps: pd.DataFrame, facts: pd.DataFrame, strikes: pd.DataFrame, weather: pd.DataFrame | None,
-                validation_end: pd.Timestamp, variant: str = "next_strike") -> pd.DataFrame:
+                validation_end: pd.Timestamp, variant: str = "next_strike", early_hours: float = EARLY_HOURS) -> pd.DataFrame:
     """Cohort episodes (see module docstring) with issue-time features, final label and split.
     `res_at` / `res_hours`: resolution post time and hours from the strike (NaT / NaN = censored); `end_hours`: hours from the
     strike to the end of the watched window."""
@@ -146,7 +219,9 @@ def build_table(eps: pd.DataFrame, facts: pd.DataFrame, strikes: pd.DataFrame, w
     by_ob = {ob: g.sort_values("datetime").reset_index(drop=True) for ob, g in facts.groupby("oblast")}
     empty = facts.iloc[0:0]
     F = pd.DataFrame([issue_features(by_ob.get(r.oblast, empty), facts, r.strike_at, r.issue) for r in e.itertuples()], index=e.index)
-    out = pd.concat([e[["strike_at", "idx", "issue", "oblast", "coverage", "res_at", "res_hours", "end_hours"] + STRIKE_F], F], axis=1)
+    E = pd.DataFrame([early_features(by_ob.get(r.oblast, empty), r.strike_at, r.issue, early_hours, r.coverage == "own_channel")
+                      for r in e.itertuples()], index=e.index)
+    out = pd.concat([e[["strike_at", "idx", "issue", "oblast", "coverage", "res_at", "res_hours", "end_hours"] + STRIKE_F], F, E], axis=1)
     for o in OBLASTS:
         out[f"ob_{o}"] = (out["oblast"] == o).astype(float)
     out["observed"] = out["res_at"].notna()                                 # final label
@@ -154,7 +229,7 @@ def build_table(eps: pd.DataFrame, facts: pd.DataFrame, strikes: pd.DataFrame, w
     out["hours"] = out["hours"].clip(lower=MIN_H)
     out["split"] = np.where(out["strike_at"] <= validation_end + pd.Timedelta(hours=23), "validation", "test")
     out["variant"] = variant
-    return out.sort_values(["idx", "oblast"]).reset_index(drop=True)
+    return add_history(out, facts)
 
 
 def labels_as_of(tab: pd.DataFrame, as_of: pd.Timestamp) -> pd.DataFrame:
@@ -225,11 +300,73 @@ def fit_ridge(X: np.ndarray, t: np.ndarray, event: np.ndarray, alpha: float, col
     return lambda Xn: np.clip(np.exp(m.predict(pr(Xn))), MIN_H, HORIZON_H)
 
 
+def censor_survival(t: np.ndarray, event: np.ndarray):
+    """Kaplan-Meier estimate of the CENSORING distribution (censored = the "event" here), fitted on the given rows only.
+    Returns G(q) = P(C >= q) evaluated just before q (left limit); at a tie an observed duration counts as earlier than a censor time."""
+    t, ev = np.asarray(t, float), np.asarray(event, bool)
+    cs = np.unique(t[~ev])
+    steps = np.array([1.0 - ((~ev) & (t == s)).sum() / max(int((t >= s).sum()), 1) for s in cs])
+    cum = np.cumprod(steps) if len(cs) else np.array([])
+
+    def G(q):
+        q = np.atleast_1d(np.asarray(q, float))
+        k = np.searchsorted(cs, q, side="left")                  # number of censor times strictly before q
+        return np.where(k > 0, cum[np.maximum(k - 1, 0)] if len(cum) else 1.0, 1.0)
+    return G
+
+
+def fit_ipcw_ridge(X: np.ndarray, t: np.ndarray, event: np.ndarray, alpha: float, cols: list[str], gmin: float = 0.2):
+    """Ridge on log(hours) of the observed episodes, weighted by 1 / G(t_i) (inverse probability of censoring weights; G = Kaplan-Meier of
+    the censoring distribution of the TRAINING rows, floored at `gmin`; weights are scaled to mean 1 so `alpha` keeps its meaning)."""
+    from sklearn.linear_model import Ridge
+
+    w = 1.0 / np.maximum(censor_survival(t, event)(t[event]), gmin)
+    w = w / w.mean()
+    pr = _Prep(X[event], cols)
+    m = Ridge(alpha=alpha).fit(pr(X[event]), np.log(np.clip(t[event], MIN_H, None)), sample_weight=w)
+    return lambda Xn: np.clip(np.exp(m.predict(pr(Xn))), MIN_H, HORIZON_H)
+
+
+def fit_xgb_aft(X: np.ndarray, t: np.ndarray, event: np.ndarray, depth: int, rounds: int, cols: list[str], eta: float = 0.1,
+                reg_lambda: float = 10.0, sigma: float = 1.0, seed: int = 42):
+    """Gradient-boosted trees with the Accelerated-Failure-Time objective (`survival:aft`, normal errors on log time).
+    Interval labels: observed -> [t, t], censored -> [c, +inf). Small shallow trees, strong L2, no subsampling; predicts the median
+    (exp of the margin). Imputation statistics come from the training rows only."""
+    import xgboost as xgb
+
+    pr = _Prep(X, cols)
+    tt = np.clip(t, MIN_H, None)
+    d = xgb.DMatrix(pr(X))
+    d.set_float_info("label_lower_bound", tt)
+    d.set_float_info("label_upper_bound", np.where(event, tt, np.inf))
+    params = {"objective": "survival:aft", "eval_metric": "aft-nloglik", "aft_loss_distribution": "normal",
+              "aft_loss_distribution_scale": sigma, "max_depth": depth, "learning_rate": eta, "reg_lambda": reg_lambda,
+              "min_child_weight": 0.0, "tree_method": "hist", "nthread": 1, "seed": seed, "verbosity": 0}
+    bst = xgb.train(params, d, rounds)
+    return lambda Xn: np.clip(bst.predict(xgb.DMatrix(pr(Xn))), MIN_H, HORIZON_H)
+
+
 def designs(alphas: list[float]) -> list[tuple[str, str, str, float]]:
     return [(f"{m}_{s}_a{a:g}", m, s, a) for m in ("ridge", "aft") for s in feature_sets() for a in alphas]
 
 
-def forecast_strike(train: pd.DataFrame, test: pd.DataFrame, alphas: list[float], min_oblast: int) -> pd.DataFrame:
+XGB_SETS = ("strike_oblast_hist", "full", "strike_oblast_hist_early")
+XGB_GRID = [(1, 25), (1, 60), (2, 25), (2, 60)]                    # (max_depth, boosting rounds); eta 0.1, lambda 10 (dev CV only)
+IPCW_SETS = ("strike", "strike_oblast", "strike_oblast_hist", "strike_oblast_early", "strike_oblast_hist_early")
+
+
+def extra_designs(alphas: list[float]) -> list[tuple[str, str, str, object]]:
+    """Censoring-aware designs added after the original ones (only used with `extra=True`; the original designs are unchanged)."""
+    out = [(f"ipcw_{s}_a{a:g}", "ipcw", s, a) for s in IPCW_SETS for a in alphas]
+    out += [(f"xgbaft_{s}_d{d}n{n}", "xgbaft", s, (d, n)) for s in XGB_SETS for d, n in XGB_GRID]
+    return out
+
+
+def all_methods(alphas: list[float], extra: bool = False) -> list[str]:
+    return REFERENCES + [d[0] for d in designs(alphas)] + ([d[0] for d in extra_designs(alphas)] if extra else [])
+
+
+def forecast_strike(train: pd.DataFrame, test: pd.DataFrame, alphas: list[float], min_oblast: int, extra: bool = False) -> pd.DataFrame:
     """Predictions of every method for the rows `test` from the rows `train` (all labels known at the issue time)."""
     t, ev = train["hours"].to_numpy(float), train["observed"].to_numpy(bool)
     glob = float(np.median(t[ev]))
@@ -246,6 +383,11 @@ def forecast_strike(train: pd.DataFrame, test: pd.DataFrame, alphas: list[float]
         cols = feature_sets()[s]
         fit = fit_aft if model == "aft" else fit_ridge
         out[name] = fit(train[cols].to_numpy(float), t, ev, a, cols)(test[cols].to_numpy(float))
+    if extra:
+        for name, model, s, a in extra_designs(alphas):
+            cols = feature_sets()[s]
+            Xtr, Xte = train[cols].to_numpy(float), test[cols].to_numpy(float)
+            out[name] = fit_ipcw_ridge(Xtr, t, ev, a, cols)(Xte) if model == "ipcw" else fit_xgb_aft(Xtr, t, ev, a[0], a[1], cols)(Xte)
     return out
 
 
@@ -339,10 +481,10 @@ def paired_tests(tab: pd.DataFrame, pairs: list[tuple[str, str]], n_boot: int = 
     return pd.DataFrame(rows)
 
 
-def run_walk_forward(tab: pd.DataFrame, alphas: list[float], min_obs: int, min_oblast: int) -> pd.DataFrame:
+def run_walk_forward(tab: pd.DataFrame, alphas: list[float], min_obs: int, min_oblast: int, extra: bool = False) -> pd.DataFrame:
     """Forecast of every cohort episode from the episodes of earlier strikes only, with their labels as known at the
     issue time of the forecast strike."""
-    methods = REFERENCES + [d[0] for d in designs(alphas)]
+    methods = all_methods(alphas, extra)
     pred = pd.DataFrame(np.nan, index=tab.index, columns=methods)
     tab = tab.copy()
     tab["evaluated"] = False
@@ -355,7 +497,7 @@ def run_walk_forward(tab: pd.DataFrame, alphas: list[float], min_obs: int, min_o
         tab.loc[test.index, "n_train_observed"] = int(train["observed"].sum())
         if int(train["observed"].sum()) < min_obs:
             continue
-        pred.loc[test.index] = forecast_strike(train, test, alphas, min_oblast).reindex(columns=methods)
+        pred.loc[test.index] = forecast_strike(train, test, alphas, min_oblast, extra).reindex(columns=methods)
         tab.loc[test.index, "evaluated"] = True
     return pd.concat([tab, pred], axis=1)
 
@@ -390,7 +532,7 @@ def channel_completeness(raw_dir: Path, channel_oblast: dict[str, str]) -> pd.Da
 # --------------------------------------------------------------------------------------------------
 def run_variant(tc, eps, facts, strikes, weather, variant: str, seed: int) -> dict:
     vend = pd.Timestamp(tc.region_validation_end, tz="UTC")
-    tab = build_table(eps, facts, strikes, weather, vend, variant)
+    tab = build_table(eps, facts, strikes, weather, vend, variant, tc.region_early_hours)
     tab = run_walk_forward(tab, tc.region_alphas, tc.region_min_obs, tc.region_min_oblast)
     methods = REFERENCES + [d[0] for d in designs(tc.region_alphas)]
     scores = score_table(tab, methods)
@@ -408,10 +550,13 @@ def run_variant(tc, eps, facts, strikes, weather, variant: str, seed: int) -> di
 
 def run_region_restoration(cfg: Config) -> dict[str, dict]:
     tc = cfg.telegram
+    if tc.region_label_source != "telegram":
+        raise ValueError("telegram.region_label_source other than 'telegram' is DEV ONLY (use region-restoration --dev)")
     root = cfg._abs(cfg.paths.data_dir)                                  # real data even if --synthetic is passed
-    eps = pd.read_parquet(root / "processed" / "telegram_region_episodes.parquet")
-    facts = pd.read_parquet(root / "processed" / "telegram_region_posts.parquet")
-    strikes = load_strikes(root / "external" / "attacks.csv")
+    pdir = cfg.telegram_processed_dir
+    eps = pd.read_parquet(pdir / "telegram_region_episodes.parquet")
+    facts = pd.read_parquet(pdir / "telegram_region_posts.parquet")
+    strikes = load_strikes(cfg.strike_list_path)
     wpath = root / "raw" / "weather.parquet"
     weather = pd.read_parquet(wpath) if wpath.exists() else None
     d = cfg.reports_dir

@@ -317,3 +317,82 @@ def test_run_extract_any_channel_and_excluded_channels(tmp_path: Path):
     # an explicit channel list overrides the exclusion
     out2 = te.run_extract(tmp_path, channels=["kpszsu"], exclude=["kpszsu"])
     assert set(out2["posts"]["channel"]) == {"kpszsu"}
+
+# ---------------------------------------------------------------- regional gold v2: regime / restoration phrasing
+NL = chr(10)
+
+
+def test_future_tense_negation_lifts_schedules():
+    r = ex("14 лютого графіки погодинного відключення застосовуватись не будуть.")
+    assert r["schedules_lifted"] and not r["outage_schedules_announced"]
+
+
+def test_exemption_and_non_grid_cancellations_are_not_a_lifting():
+    assert not ex("Відтепер заходи обмеження електропостачання не застосовуватимуться до промислових і комерційних споживачів, "
+                  "якщо вони забезпечують 80% свого споживання власною генерацією.")["schedules_lifted"]
+    assert not ex("Інформуємо, що відключення КП «Міськводоканал» скасовано постачальною компанією.")["schedules_lifted"]
+
+
+def test_list_items_under_a_will_apply_header_are_announced_schedules():
+    r = ex(NL.join(["31 грудня на Хмельниччині діятимуть:", "- графік погодинних відключень",
+                    "- графік обмеження споживання електричної потужності."]))
+    assert r["outage_schedules_announced"]
+    assert ex(NL.join(["Оновлений графік на сьогодні.", "Нагадуємо, актуальна інформація про погодинні відключення – на сайті."]))[
+        "outage_schedules_announced"]
+    assert ex("У регіоні діють екстрені вимкнення електроенергії. Працюємо, щоб вийти на планові вимкнення.")["emergency_outages"]
+
+
+def test_gav_reintroduced_with_a_parenthetical_cancellation_is_in_force():
+    r = ex("О 15:26 введено ГАВ у повному обсязі повторно (о 14:18 були скасовані ГАВ для 6-10 черг споживачів).")
+    assert r["emergency_outages"] and r["outage_schedules_announced"] and not r["schedules_lifted"]
+
+
+def test_returning_to_schedules_after_cancelled_emergency_outages():
+    r = ex(NL.join(["Київ: повертаємось до графіків, екстрені відключення скасовано", "Де подивитись графіки?",
+                    "У чат-боті або на сайті."]))
+    assert r["outage_schedules_announced"] and r["schedules_lifted"] and not r["emergency_outages"]
+
+
+def test_explainers_purpose_clauses_and_service_descriptions_are_not_regimes():
+    faq = NL.join(["Чому зараз є відключення? Відповідаємо на запитання", "❓ Чому бувають аварійні відключення?",
+                   "Аварійні відключення - це терміновий керований захід.", "❓ Коли повернуть світло після аварійного відключення?",
+                   "Час відновлення залежить від ситуації.", "❓ Чому в сусідньому будинку є світло?"])
+    assert not ex(faq)["emergency_outages"]
+    assert not ex("У Viber і Telegram Ви можете отримувати інформацію про планові роботи та аварійні відключення.")["emergency_outages"]
+    r = ex("З метою уникнення застосування аварійних відключень (ГАВ та СГАВ), 26 січня по області продовжує діяти графік "
+           "погодинних відключень (ГПВ).")
+    assert r["outage_schedules_announced"] and not r["emergency_outages"]
+    r = ex("В Одесі все ще діють мережеві обмеження. Тому для уникнення перевантаження обладнання, яке залишилося в роботі, "
+           "застосовуються графіки погодинних відключень.")
+    assert r["outage_schedules_announced"]
+
+
+def test_restoration_phrasings_full_and_partial():
+    assert ex("Там вже відновлена електрика, вночі дали теплопостачання.")["restoration_power"] == "full"
+    assert ex("Було знеструмлення споживачів електроенергії, яке згодом відновили енергетики.")["restoration_power"] == "full"
+    assert ex("Без світла залишилися 1 000 родин, втім вже протягом години всі вони були заживлені.")["restoration_power"] == "full"
+    assert ex("Наразі фахівцям уже вдалося подати електроживлення до об'єктів критичної інфраструктури та майже до всіх "
+              "споживачів.")["restoration_power"] == "partial"
+    assert ex("Відновили напругу на ключових об'єктах. Продовжуються роботи з подачі електроенергії.")["restoration_power"] == "partial"
+    assert ex("Заживлена вся критична інфраструктура області. Надходить електрика і до будинків.")["restoration_power"] == "partial"
+    assert ex("У Запорізькій області ще вдень відновили енергопостачання за графіками.")["restoration_power"] == "partial"
+    assert ex("Енергетики повернули електрику критичній інфраструктурі. Електропостачання ключових об'єктів вже відновлено.")[
+        "restoration_power"] == "partial"
+    r = ex("Повернули світло в понад 116 тисяч домівок. Наразі електропостачання відновлено повністю у 146 населених пунктах. "
+           "У 219 населених пунктах – частково.")
+    assert r["restoration_power"] == "partial" and r["consumers_restored"] == 116_000
+
+
+def test_restoration_of_heat_water_or_a_nuclear_plant_feed_is_not_power_restored():
+    assert ex("Коли температура буде нижче +8, буде подано тепло й до житлових будинків.")["restoration_power"] is None
+    assert ex("Повернули воду в оселі мешканців Марганецької громади.")["restoration_power"] is None
+    assert ex("Надійність живлення Запорізької АЕС відновлено. Ремонтні бригади повернули в роботу лінію 330 кВ.")[
+        "restoration_power"] is None
+
+
+def test_consumer_counts_continuation_and_heat_or_hypothetical_cuts():
+    r = ex("Без світла залишились понад 3 тис абонентів у Нікополі та більш ніж 6,4 тис у районі.")
+    assert r["consumers_without_power"] == 6400
+    assert ex("Через російські удари взимку без тепла можуть залишитися понад 500 багатоквартирних будинків.")[
+        "consumers_without_power"] is None
+    assert ex("Внаслідок нічної атаки без електропостачання залишалися понад 335 тисяч киян.")["consumers_without_power"] == 335_000

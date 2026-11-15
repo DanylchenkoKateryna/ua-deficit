@@ -1,0 +1,9 @@
+# Dev-only scenario: post-event depth / duration on the EXTENDED strike list for the outage index, train+validation only
+# (validation_end 2025-06-30 from outages.yaml; the test year 2025-07..2026-06 is never loaded).
+#   docker compose run --rm deficit-offline events-dev --config config/outages_extended.yaml
+extends: outages.yaml
+
+post_event:
+  strike_list: data/external/attacks_extended.csv
+  min_event_gap_days: 7
+  dev_gap_sensitivity: [3, 14]

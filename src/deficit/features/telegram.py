@@ -1,4 +1,4 @@
-"""Features from public Telegram posts, known at an issue time (README §5.1.2).
+"""Features from public Telegram posts, known at an issue time (README §6).
 
 Every value for the issue day d uses only posts with `datetime < d + 1 day`, i.e. published before the END of day d
 (the forecast is issued at 00:00 UTC of the next day; a post stamped exactly at that instant is not used).
